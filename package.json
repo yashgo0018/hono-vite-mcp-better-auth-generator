@@ -1,0 +1,39 @@
+{
+  "name": "project-builder",
+  "version": "1.0.0",
+  "description": "CLI tool to scaffold full-stack projects with Cloudflare Workers, Hono, Drizzle, Vite, React, and Better Auth",
+  "module": "index.ts",
+  "type": "module",
+  "bin": {
+    "create-project": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "bun src/index.ts",
+    "build": "bun build src/index.ts --outfile=dist/index.js --target=node",
+    "link": "bun link"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.1.0",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "zod": "^4.3.6"
+  },
+  "keywords": [
+    "cli",
+    "scaffold",
+    "cloudflare",
+    "hono",
+    "drizzle",
+    "vite",
+    "react",
+    "better-auth",
+    "monorepo"
+  ],
+  "license": "MIT"
+}
