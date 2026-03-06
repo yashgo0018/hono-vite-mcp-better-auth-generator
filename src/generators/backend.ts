@@ -82,6 +82,12 @@ export function generateBackend(
 		const authTs = generateAuthConfig(config);
 		writeFile(join(backendPath, "src/auth.ts"), authTs);
 
+		// src/auth-with-env.ts (for Better Auth CLI)
+		if (config.includeDatabase) {
+			const authWithEnvTs = generateAuthWithEnv(config);
+			writeFile(join(backendPath, "src/auth-with-env.ts"), authWithEnvTs);
+		}
+
 		// src/lib/middlewares.ts
 		const middlewaresTs = generateMiddlewares(config);
 		writeFile(join(backendPath, "src/lib/middlewares.ts"), middlewaresTs);
@@ -226,6 +232,27 @@ export const createAuth = (env: Bindings) => {
 		trustedOrigins: [env.WEB_ORIGIN],
 	});
 };
+`;
+}
+
+function generateAuthWithEnv(config: ProjectConfig): string {
+	return `import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+import { createDb } from "@${config.name}/db";
+
+/**
+ * Auth configuration for Better Auth CLI
+ * This file is used by the Better Auth CLI to generate the database schema
+ * Run: ${config.packageManager} run auth:generate
+ */
+export const auth = betterAuth({
+	database: drizzleAdapter(createDb(process.env.DATABASE_URL || ""), {
+		provider: "pg",
+	}),
+	secret: process.env.BETTER_AUTH_SECRET || "dummy-secret-for-schema-generation",
+	baseURL: process.env.API_ORIGIN || "http://localhost:8787",
+	trustedOrigins: [process.env.WEB_ORIGIN || "http://localhost:5173"],
+});
 `;
 }
 

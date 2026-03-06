@@ -112,65 +112,6 @@ export const example = pgTable("example", {
 
 	writeFile(join(dbPath, "src/schema.ts"), schemaTs);
 
-	// src/auth-schema.ts (if includeAuth)
-	if (config.includeAuth) {
-		const authSchemaTs = `import { pgTable, uuid, text, timestamp, boolean } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
-
-// Better Auth tables
-export const users = pgTable("users", {
-	id: uuid("id")
-		.default(sql\`pg_catalog.gen_random_uuid()\`)
-		.primaryKey(),
-	name: text("name").notNull(),
-	email: text("email").notNull().unique(),
-	emailVerified: boolean("email_verified").default(false).notNull(),
-	image: text("image"),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-	updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-export const session = pgTable("session", {
-	id: uuid("id")
-		.default(sql\`pg_catalog.gen_random_uuid()\`)
-		.primaryKey(),
-	userId: uuid("user_id")
-		.notNull()
-		.references(() => users.id, { onDelete: "cascade" }),
-	expiresAt: timestamp("expires_at").notNull(),
-	ipAddress: text("ip_address"),
-	userAgent: text("user_agent"),
-});
-
-export const account = pgTable("account", {
-	id: uuid("id")
-		.default(sql\`pg_catalog.gen_random_uuid()\`)
-		.primaryKey(),
-	userId: uuid("user_id")
-		.notNull()
-		.references(() => users.id, { onDelete: "cascade" }),
-	accountId: text("account_id").notNull(),
-	providerId: text("provider_id").notNull(),
-	accessToken: text("access_token"),
-	refreshToken: text("refresh_token"),
-	expiresAt: timestamp("expires_at"),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-export const verification = pgTable("verification", {
-	id: uuid("id")
-		.default(sql\`pg_catalog.gen_random_uuid()\`)
-		.primaryKey(),
-	identifier: text("identifier").notNull(),
-	value: text("value").notNull(),
-	expiresAt: timestamp("expires_at").notNull(),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-`;
-
-		writeFile(join(dbPath, "src/auth-schema.ts"), authSchemaTs);
-	}
-
 	// .env.example
 	const envExample = `DATABASE_URL=postgresql://user:password@localhost:5432/database_name
 `;

@@ -60,6 +60,10 @@ export function generateRootPackageJson(
 				config.includeDatabase
 					? `dotenv -e apps/backend/.env -- sh -c "cd packages/db && ${config.packageManager === "bun" ? "bunx" : "npx"} drizzle-kit migrate"`
 					: undefined,
+			"auth:generate":
+				config.includeAuth && config.includeDatabase
+					? `${config.packageManager === "bun" ? "bunx" : "npx"} @better-auth/cli generate -y --config ./apps/backend/src/auth-with-env.ts --output ./packages/db/src/auth-schema.ts`
+					: undefined,
 			lint: `${config.packageManager === "bun" ? "bunx" : "npx"} biome check .`,
 			"lint:fix": `${config.packageManager === "bun" ? "bunx" : "npx"} biome check --write .`,
 			format: `${config.packageManager === "bun" ? "bunx" : "npx"} biome format --write .`,
@@ -175,6 +179,9 @@ yarn-error.log*
 # Cloudflare
 .wrangler/
 .dev.vars
+
+# Better Auth
+packages/db/src/auth-schema.ts
 
 # Misc
 *.tsbuildinfo
@@ -311,6 +318,7 @@ ${
 - \`${config.packageManager} run dev\` - Start development servers
 - \`${config.packageManager} run build\` - Build for production
 ${config.includeDatabase ? `- \`${config.packageManager} run db:migrate\` - Run database migrations` : ""}
+${config.includeAuth && config.includeDatabase ? `- \`${config.packageManager} run auth:generate\` - Generate Better Auth database schema` : ""}
 - \`${config.packageManager} run lint\` - Check code quality
 - \`${config.packageManager} run lint:fix\` - Fix linting issues
 - \`${config.packageManager} run format\` - Format code
