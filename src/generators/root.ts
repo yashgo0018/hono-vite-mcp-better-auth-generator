@@ -97,7 +97,7 @@ export function generateTsConfigBase(projectPath: string) {
 
 export function generateBiomeConfig(projectPath: string) {
 	const biomeConfig = {
-		$schema: "https://biomejs.dev/schemas/1.9.4/schema.json",
+		$schema: "./node_modules/@biomejs/biome/configuration_schema.json",
 		vcs: {
 			enabled: true,
 			clientKind: "git",
