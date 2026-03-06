@@ -14,6 +14,7 @@ const FALLBACK_VERSIONS: Record<string, string> = {
 	"@hono/zod-validator": "^0.7.6",
 	wrangler: "^3.107.0",
 	"better-auth": "^1.3.12",
+	"@better-auth/drizzle-adapter": "^1.3.12",
 
 	// Database
 	"drizzle-orm": "^0.45.1",
@@ -203,6 +204,9 @@ export function collectRequiredPackages(config: ProjectConfig): string[] {
 
 	if (config.includeAuth) {
 		packages.add("better-auth");
+		if (config.includeDatabase) {
+			packages.add("@better-auth/drizzle-adapter");
+		}
 	}
 
 	return Array.from(packages);

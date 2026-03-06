@@ -27,6 +27,9 @@ export function generateBackend(
 
 	if (config.includeAuth) {
 		deps["better-auth"] = versions.get("better-auth") || "^1.3.12";
+		if (config.includeDatabase) {
+			deps["@better-auth/drizzle-adapter"] = versions.get("@better-auth/drizzle-adapter") || "^1.3.12";
+		}
 	}
 
 	const packageJson = {
@@ -201,7 +204,7 @@ export const apiRoutes = new Hono()
 
 function generateAuthConfig(config: ProjectConfig): string {
 	return `import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { createDb, schema } from "@${config.name}/db";
 import type { Bindings } from "./env";
 
