@@ -2,20 +2,24 @@ import { join } from "path";
 import type { ProjectConfig } from "../types";
 import { writeFile } from "../utils/file-utils";
 
-export function generateRootPackageJson(projectPath: string, config: ProjectConfig) {
+export function generateRootPackageJson(
+	projectPath: string,
+	config: ProjectConfig,
+	versions: Map<string, string>,
+) {
 	const catalog: Record<string, string> = {
-		"@cloudflare/workers-types": "^4.20260131.0",
-		typescript: "^5.9.3",
-		zod: "^4.3.6",
+		"@cloudflare/workers-types": versions.get("@cloudflare/workers-types") || "^4.20260131.0",
+		typescript: versions.get("typescript") || "^5.9.3",
+		zod: versions.get("zod") || "^4.3.6",
 	};
 
 	if (config.includeFrontend) {
-		catalog["@tailwindcss/vite"] = "^4.1.18";
-		catalog["@types/react"] = "^19.2.10";
-		catalog.react = "^19.2.4";
-		catalog["react-dom"] = "^19.2.4";
-		catalog.vite = "^7.3.1";
-		catalog["@vitejs/plugin-react"] = "^6.0.1";
+		catalog["@tailwindcss/vite"] = versions.get("@tailwindcss/vite") || "^4.1.18";
+		catalog["@types/react"] = versions.get("@types/react") || "^19.2.10";
+		catalog.react = versions.get("react") || "^19.2.4";
+		catalog["react-dom"] = versions.get("react-dom") || "^19.2.4";
+		catalog.vite = versions.get("vite") || "^7.3.1";
+		catalog["@vitejs/plugin-react"] = versions.get("@vitejs/plugin-react") || "^6.0.1";
 	}
 
 	const packageJson = {
@@ -23,16 +27,19 @@ export function generateRootPackageJson(projectPath: string, config: ProjectConf
 		private: true,
 		description: config.description,
 		author: config.author,
-		packageManager: config.packageManager === "bun" ? "bun@1.2.18" : undefined,
+		packageManager:
+			config.packageManager === "bun"
+				? `bun@${versions.get("bun") || "1.2.18"}`
+				: undefined,
 		workspaces: {
 			packages: ["apps/*", "packages/*"],
 			catalog,
 		},
 		scripts: {
 			dev: config.includeBackend && config.includeFrontend
-				? `wrangler dev --config apps/backend/wrangler.toml & ${config.packageManager} --cwd apps/web dev`
+				? `wrangler dev --config apps/backend/wrangler.json & ${config.packageManager} --cwd apps/web dev`
 				: config.includeBackend
-					? "wrangler dev --config apps/backend/wrangler.toml"
+					? "wrangler dev --config apps/backend/wrangler.json"
 					: config.includeFrontend
 						? `${config.packageManager} --cwd apps/web dev`
 						: undefined,
@@ -46,6 +53,13 @@ export function generateRootPackageJson(projectPath: string, config: ProjectConf
 				config.includeDatabase
 					? `dotenv -e apps/backend/.env -- sh -c "cd packages/db && ${config.packageManager === "bun" ? "bunx" : "npx"} drizzle-kit migrate"`
 					: undefined,
+			lint: `${config.packageManager === "bun" ? "bunx" : "npx"} biome check .`,
+			"lint:fix": `${config.packageManager === "bun" ? "bunx" : "npx"} biome check --write .`,
+			format: `${config.packageManager === "bun" ? "bunx" : "npx"} biome format --write .`,
+			typecheck: `${config.packageManager === "bun" ? "bunx" : "npx"} tsc --noEmit`,
+		},
+		devDependencies: {
+			"@biomejs/biome": versions.get("@biomejs/biome") || "^1.9.4",
 		},
 	};
 
@@ -134,7 +148,6 @@ build/
 .env.*.local
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -159,6 +172,42 @@ yarn-error.log*
 `;
 
 	writeFile(join(projectPath, ".gitignore"), content);
+}
+
+export function generateVSCodeSettings(projectPath: string) {
+	const settings = {
+		"editor.formatOnSave": true,
+		"editor.defaultFormatter": "biomejs.biome",
+		"editor.codeActionsOnSave": {
+			"source.organizeImports.biome": "always",
+			"source.fixAll.biome": "always",
+		},
+		"editor.tabSize": 2,
+		"[typescript]": {
+			"editor.defaultFormatter": "biomejs.biome",
+		},
+		"[typescriptreact]": {
+			"editor.defaultFormatter": "biomejs.biome",
+		},
+		"[javascript]": {
+			"editor.defaultFormatter": "biomejs.biome",
+		},
+		"[javascriptreact]": {
+			"editor.defaultFormatter": "biomejs.biome",
+		},
+		"[json]": {
+			"editor.defaultFormatter": "biomejs.biome",
+		},
+		"typescript.tsdk": "node_modules/typescript/lib",
+	};
+
+	writeFile(join(projectPath, ".vscode/settings.json"), JSON.stringify(settings, null, 2));
+
+	const extensions = {
+		recommendations: ["biomejs.biome", "dbaeumer.vscode-eslint", "bradlc.vscode-tailwindcss"],
+	};
+
+	writeFile(join(projectPath, ".vscode/extensions.json"), JSON.stringify(extensions, null, 2));
 }
 
 export function generateReadme(projectPath: string, config: ProjectConfig) {

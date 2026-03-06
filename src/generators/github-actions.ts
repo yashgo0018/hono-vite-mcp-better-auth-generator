@@ -26,6 +26,32 @@ export function generateGithubActions(projectPath: string, config: ProjectConfig
 }
 
 function generateDeployBackendWorkflow(config: ProjectConfig): string {
+	const secrets: string[] = ["APP_ENV"];
+	const secretCommands: string[] = [];
+
+	if (config.includeDatabase) {
+		secrets.push("DATABASE_URL");
+	}
+	if (config.includeAuth) {
+		secrets.push("BETTER_AUTH_SECRET");
+	}
+
+	// Generate secret put commands
+	for (const secret of secrets) {
+		if (secret === "APP_ENV") continue; // APP_ENV is set based on environment
+		secretCommands.push(`printf "%s" "$${secret}" | bunx wrangler secret put ${secret}`);
+	}
+
+	// Generate variables
+	const vars: string[] = [];
+	if (config.includeAuth) {
+		vars.push("API_ORIGIN", "WEB_ORIGIN");
+	}
+
+	const varFlags = vars
+		.map((v) => `--var ${v}:\${{ vars.${v} }}`)
+		.join(" \\\\\n            ");
+
 	return `name: Deploy Backend
 
 on:
@@ -54,25 +80,43 @@ jobs:
         if: github.ref_name != 'prod'
         env:
           CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
-          DATABASE_URL: \${{ secrets.DATABASE_URL }}
+${secrets
+	.filter((s) => s !== "APP_ENV")
+	.map((s) => `          ${s}: \${{ secrets.${s} }}`)
+	.join("\n")}
         run: |
           cd apps/backend
-          printf "%s" "$DATABASE_URL" | bunx wrangler secret put DATABASE_URL --env staging
-          bunx wrangler deploy --env staging
+${secretCommands.map((cmd) => `          ${cmd} --env staging`).join("\n")}
+          printf "%s" "staging" | bunx wrangler secret put APP_ENV --env staging
+          bunx wrangler deploy --env staging${varFlags ? ` \\\\\n            ${varFlags}` : ""}
 
       - name: Deploy to Cloudflare (production)
         if: github.ref_name == 'prod'
         env:
           CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
-          DATABASE_URL: \${{ secrets.DATABASE_URL }}
+${secrets
+	.filter((s) => s !== "APP_ENV")
+	.map((s) => `          ${s}: \${{ secrets.${s} }}`)
+	.join("\n")}
         run: |
           cd apps/backend
-          printf "%s" "$DATABASE_URL" | bunx wrangler secret put DATABASE_URL --env production
-          bunx wrangler deploy --env production
+${secretCommands.map((cmd) => `          ${cmd} --env production`).join("\n")}
+          printf "%s" "production" | bunx wrangler secret put APP_ENV --env production
+          bunx wrangler deploy --env production${varFlags ? ` \\\\\n            ${varFlags}` : ""}
 `;
 }
 
 function generateDeployWebWorkflow(config: ProjectConfig): string {
+	const frontendVars: string[] = [];
+
+	if (config.includeBackend) {
+		frontendVars.push("VITE_API_ORIGIN");
+	}
+
+	const envVars = frontendVars
+		.map((v) => `          ${v}: \${{ vars.${v} }}`)
+		.join("\n");
+
 	return `name: Deploy Web
 
 on:
@@ -98,9 +142,7 @@ jobs:
         run: ${config.packageManager} install
 
       - name: Build
-        env:
-          VITE_API_ORIGIN: \${{ vars.VITE_API_ORIGIN }}
-        run: |
+${envVars ? `        env:\n${envVars}\n` : ""}        run: |
           cd apps/web
           ${config.packageManager === "bun" ? "bun run" : config.packageManager === "npm" ? "npm run" : config.packageManager} build
 

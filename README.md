@@ -10,7 +10,11 @@ A powerful CLI tool to scaffold full-stack projects with modern technologies inc
 - 🎨 **Modern Frontend** - Vite + React 19 + Tailwind CSS v4
 - 🗄️ **Type-Safe Database** - Drizzle ORM with PostgreSQL
 - 🔐 **Better Auth** - Complete authentication solution
-- 🔄 **CI/CD Ready** - GitHub Actions workflows included
+- 💾 **KV Storage** - Optional Cloudflare KV with automated namespace creation
+- 🪣 **R2 Object Storage** - Optional Cloudflare R2 buckets with automated creation
+- 📊 **Observability** - Optional Cloudflare logs and analytics
+- 🔄 **CI/CD Ready** - GitHub Actions workflows with automated environment setup
+- 🤖 **Automation Scripts** - One-command Cloudflare and GitHub configuration
 - 🎯 **TypeScript First** - Full type safety across the stack
 - 🛠️ **Developer Experience** - Biome for linting and formatting
 
@@ -69,7 +73,10 @@ The CLI will ask you for:
 6. **Include Frontend** - Vite + React application
 7. **Include Database** - Drizzle ORM with PostgreSQL
 8. **Include Better Auth** - Authentication system
-9. **Include GitHub Actions** - CI/CD workflows
+9. **Include KV Namespace** - Cloudflare KV for key-value storage (if backend enabled)
+10. **Include R2 Bucket** - Cloudflare R2 for object storage (if backend enabled)
+11. **Include Observability** - Enable logs and analytics in Cloudflare (if backend enabled)
+12. **Include GitHub Actions** - CI/CD workflows
 
 ## Generated Project Structure
 
@@ -83,7 +90,7 @@ your-project/
 │   │   │   ├── env.ts         # Environment schema
 │   │   │   ├── routes/        # API routes
 │   │   │   └── lib/           # Middlewares & utilities
-│   │   ├── wrangler.toml      # Cloudflare config
+│   │   ├── wrangler.json      # Cloudflare config
 │   │   └── package.json
 │   └── web/              # Vite + React frontend (optional)
 │       ├── src/
@@ -113,6 +120,9 @@ your-project/
 │       ├── deploy-backend.yml # Backend deployment
 │       ├── deploy-web.yml     # Frontend deployment
 │       └── db-migrate.yml     # Database migrations
+├── scripts/              # Automation scripts
+│   ├── install-cloudflare.sh  # Create KV namespaces (if KV enabled)
+│   └── setup-github-env.sh    # Configure GitHub secrets/vars
 ├── package.json          # Root workspace config
 ├── tsconfig.base.json    # Shared TypeScript config
 ├── biome.json           # Linting & formatting
@@ -127,6 +137,9 @@ your-project/
 - **Framework**: Hono (lightweight, fast, edge-compatible)
 - **Database**: Drizzle ORM with PostgreSQL
 - **Auth**: Better Auth (if enabled)
+- **KV Storage**: Cloudflare KV for key-value data (if enabled)
+- **Object Storage**: Cloudflare R2 for files and blobs (if enabled)
+- **Observability**: Cloudflare Logs & Analytics (if enabled)
 - **Validation**: Zod
 
 ### Frontend
@@ -144,8 +157,11 @@ your-project/
 
 ### Infrastructure
 - **Hosting**: Cloudflare Workers + Pages
-- **CI/CD**: GitHub Actions
+- **CI/CD**: GitHub Actions with automated secret/variable management
 - **Database**: PostgreSQL with Cloudflare Hyperdrive (optional)
+- **KV Storage**: Cloudflare KV with automated namespace creation (optional)
+- **Object Storage**: Cloudflare R2 with automated bucket creation (optional)
+- **Monitoring**: Cloudflare Observability (optional)
 
 ## Getting Started with Generated Project
 
@@ -188,6 +204,63 @@ In the generated project:
 - `bun run dev` - Start development servers
 - `bun run build` - Build for production
 - `bun run db:migrate` - Run database migrations (if database enabled)
+
+## Automation Scripts
+
+The project includes automation scripts to streamline your deployment setup:
+
+### 1. Cloudflare Resources Setup (if KV or R2 enabled)
+
+```bash
+./scripts/install-cloudflare.sh
+```
+
+This script:
+- Creates KV namespaces for staging and production environments (if KV enabled)
+- Creates R2 buckets for staging and production environments (if R2 enabled)
+- Automatically updates `wrangler.json` with all resource IDs
+- Requires `wrangler` CLI to be installed and authenticated
+
+**Prerequisites**:
+- Install wrangler: `npm install -g wrangler`
+- Login to Cloudflare: `wrangler login`
+
+**What it creates**:
+- KV Namespaces (if enabled): Staging and production namespaces with auto-generated IDs
+- R2 Buckets (if enabled): `{project-name}-staging` and `{project-name}-production` buckets
+
+### 2. GitHub Environment Setup
+
+```bash
+./scripts/setup-github-env.sh
+```
+
+This script:
+- Configures GitHub Actions secrets and variables for staging and production environments
+- Prompts you for all required values (Cloudflare API token, database URL, etc.)
+- Sets backend secrets (sensitive data like database URLs, API keys)
+- Sets frontend variables (public configuration like API origins)
+- Creates GitHub environments if they don't exist
+
+**Prerequisites**:
+- Install GitHub CLI: `gh auth login`
+- Initialize git repository and push to GitHub
+- Run from the root of your project
+
+**What it configures**:
+
+Backend Secrets (per environment):
+- `CLOUDFLARE_API_TOKEN` - For deployments
+- `DATABASE_URL` - PostgreSQL connection string (if database enabled)
+- `BETTER_AUTH_SECRET` - Auth secret key (if Better Auth enabled)
+- `APP_ENV` - Environment name (staging/production)
+
+Backend Variables (per environment):
+- `API_ORIGIN` - Backend URL (if Better Auth enabled)
+- `WEB_ORIGIN` - Frontend URL (if Better Auth enabled)
+
+Frontend Variables (per environment):
+- `VITE_API_ORIGIN` - Backend API URL (if backend + frontend enabled)
 
 ## Configuration
 
@@ -258,9 +331,7 @@ GitHub Actions workflows are included for automatic deployment:
 - Push to `main` → Deploy to staging
 - Push to `prod` → Deploy to production
 
-Configure these secrets in your GitHub repository:
-- `CLOUDFLARE_API_TOKEN`
-- `DATABASE_URL`
+**Automated Environment Setup**: Use the included `./scripts/setup-github-env.sh` script to automatically configure all required secrets and variables in your GitHub repository.
 
 ## Project Features Based on Configuration
 
@@ -270,7 +341,10 @@ Configure these secrets in your GitHub repository:
 | Frontend | Vite, React 19, Tailwind CSS, React Router |
 | Database | Drizzle ORM, PostgreSQL schema, Migrations setup |
 | Better Auth | User authentication, Session management, OAuth support |
-| GitHub Actions | CI/CD, Linting, Type checking, Deployments |
+| KV Namespace | Cloudflare KV storage, Automated namespace creation script |
+| R2 Bucket | Cloudflare R2 object storage, Automated bucket creation script |
+| Observability | Cloudflare logs and analytics integration |
+| GitHub Actions | CI/CD, Linting, Type checking, Deployments, Environment management |
 
 ## Development Tips
 

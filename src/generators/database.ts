@@ -2,7 +2,11 @@ import { join } from "path";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
 
-export function generateDatabasePackage(projectPath: string, config: ProjectConfig) {
+export function generateDatabasePackage(
+	projectPath: string,
+	config: ProjectConfig,
+	versions: Map<string, string>,
+) {
 	const dbPath = join(projectPath, "packages/db");
 	createDirectory(dbPath);
 	createDirectory(join(dbPath, "src"));
@@ -18,11 +22,11 @@ export function generateDatabasePackage(projectPath: string, config: ProjectConf
 		},
 		dependencies: {
 			[`@${config.name}/utils`]: "workspace:*",
-			"drizzle-orm": "^0.45.1",
-			postgres: "^3.4.7",
+			"drizzle-orm": versions.get("drizzle-orm") || "^0.45.1",
+			postgres: versions.get("postgres") || "^3.4.7",
 		},
 		devDependencies: {
-			"drizzle-kit": "^0.31.8",
+			"drizzle-kit": versions.get("drizzle-kit") || "^0.31.8",
 		},
 	};
 

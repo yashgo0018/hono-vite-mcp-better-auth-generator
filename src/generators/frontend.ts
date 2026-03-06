@@ -2,7 +2,11 @@ import { join } from "path";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
 
-export function generateFrontend(projectPath: string, config: ProjectConfig) {
+export function generateFrontend(
+	projectPath: string,
+	config: ProjectConfig,
+	versions: Map<string, string>,
+) {
 	const webPath = join(projectPath, "apps/web");
 	createDirectory(webPath);
 	createDirectory(join(webPath, "src"));
@@ -15,15 +19,15 @@ export function generateFrontend(projectPath: string, config: ProjectConfig) {
 		[`@${config.name}/utils`]: "workspace:*",
 		react: "catalog:",
 		"react-dom": "catalog:",
-		"react-router-dom": "^7.13.0",
+		"react-router-dom": versions.get("react-router-dom") || "^7.13.0",
 	};
 
 	if (config.includeBackend) {
-		deps.hono = "^4.11.7";
+		deps.hono = versions.get("hono") || "^4.11.7";
 	}
 
 	if (config.includeAuth) {
-		deps["better-auth"] = "^1.3.12";
+		deps["better-auth"] = versions.get("better-auth") || "^1.3.12";
 	}
 
 	const packageJson = {

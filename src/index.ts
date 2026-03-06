@@ -2,9 +2,10 @@
 
 import { intro, outro, text, select, confirm, spinner, note } from "@clack/prompts";
 import chalk from "chalk";
-import { existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { existsSync, mkdirSync, writeFileSync, unlinkSync } from "fs";
+import { join, resolve, relative } from "path";
 import { generateProject } from "./generators/project";
+import { collectRequiredPackages, versionCache } from "./utils/npm-registry";
 
 interface ProjectConfig {
 	name: string;
@@ -15,6 +16,9 @@ interface ProjectConfig {
 	includeFrontend: boolean;
 	includeDatabase: boolean;
 	includeAuth: boolean;
+	includeKV: boolean;
+	includeR2: boolean;
+	includeObservability: boolean;
 	includeGithubActions: boolean;
 }
 
@@ -22,6 +26,58 @@ async function main() {
 	console.clear();
 
 	intro(chalk.bgCyan(chalk.black(" Project Builder ")));
+
+	const parentDir = await text({
+		message: "Where should the project be created?",
+		placeholder: process.cwd(),
+		initialValue: process.cwd(),
+		validate: (value) => {
+			if (!value) return "Parent directory is required";
+			return;
+		},
+	});
+
+	if (typeof parentDir === "symbol") {
+		outro(chalk.red("Project creation cancelled"));
+		process.exit(0);
+	}
+
+	// Resolve path (handles relative paths, tilde expansion)
+	const resolvedParentDir = resolve(parentDir);
+
+	// Validate parent directory exists
+	if (!existsSync(resolvedParentDir)) {
+		const shouldCreate = await confirm({
+			message: `Directory ${resolvedParentDir} doesn't exist. Create it?`,
+			initialValue: true,
+		});
+
+		if (typeof shouldCreate === "symbol" || !shouldCreate) {
+			outro(chalk.red("Project creation cancelled"));
+			process.exit(0);
+		}
+
+		try {
+			mkdirSync(resolvedParentDir, { recursive: true });
+		} catch (error) {
+			outro(
+				chalk.red(
+					`Failed to create directory: ${error instanceof Error ? error.message : "Unknown error"}`,
+				),
+			);
+			process.exit(1);
+		}
+	}
+
+	// Validate write permissions
+	try {
+		const testFile = join(resolvedParentDir, `.test-${Date.now()}`);
+		writeFileSync(testFile, "");
+		unlinkSync(testFile);
+	} catch (error) {
+		outro(chalk.red(`No write permissions for ${resolvedParentDir}`));
+		process.exit(1);
+	}
 
 	const projectName = await text({
 		message: "What is your project name?",
@@ -39,7 +95,7 @@ async function main() {
 		process.exit(0);
 	}
 
-	const projectPath = join(process.cwd(), projectName);
+	const projectPath = join(resolvedParentDir, projectName);
 	if (existsSync(projectPath)) {
 		outro(chalk.red(`Directory ${projectName} already exists!`));
 		process.exit(1);
@@ -123,6 +179,48 @@ async function main() {
 		process.exit(0);
 	}
 
+	let includeKV = false;
+	let includeR2 = false;
+	let includeObservability = false;
+
+	if (includeBackend) {
+		const kvResponse = await confirm({
+			message: "Include Cloudflare KV namespace?",
+			initialValue: false,
+		});
+
+		if (typeof kvResponse === "symbol") {
+			outro(chalk.red("Project creation cancelled"));
+			process.exit(0);
+		}
+
+		includeKV = kvResponse;
+
+		const r2Response = await confirm({
+			message: "Include Cloudflare R2 bucket (object storage)?",
+			initialValue: false,
+		});
+
+		if (typeof r2Response === "symbol") {
+			outro(chalk.red("Project creation cancelled"));
+			process.exit(0);
+		}
+
+		includeR2 = r2Response;
+
+		const observabilityResponse = await confirm({
+			message: "Enable observability (logs, analytics) in Cloudflare?",
+			initialValue: true,
+		});
+
+		if (typeof observabilityResponse === "symbol") {
+			outro(chalk.red("Project creation cancelled"));
+			process.exit(0);
+		}
+
+		includeObservability = observabilityResponse;
+	}
+
 	const includeGithubActions = await confirm({
 		message: "Include GitHub Actions workflows?",
 		initialValue: true,
@@ -142,24 +240,73 @@ async function main() {
 		includeFrontend,
 		includeDatabase,
 		includeAuth,
+		includeKV,
+		includeR2,
+		includeObservability,
 		includeGithubActions,
 	};
 
 	const s = spinner();
-	s.start("Generating project structure...");
+	s.start("Fetching latest package versions...");
 
 	try {
+		// Pre-fetch all versions
+		const allPackages = collectRequiredPackages(config);
+		await versionCache.fetchLatestVersions(allPackages);
+
+		// Show any packages using fallback versions
+		const failedPackages = allPackages.filter((pkg) => !versionCache.cache.has(pkg));
+
+		if (failedPackages.length > 0) {
+			const warningMsg = `Using fallback versions for: ${failedPackages.join(", ")}`;
+			s.message(warningMsg);
+		}
+
+		s.message("Generating project structure...");
 		await generateProject(projectPath, config);
+
 		s.stop("Project created successfully!");
 
-		note(
-			`
-cd ${projectName}
-${config.packageManager} install
-${config.packageManager === "bun" ? "bun run" : config.packageManager === "npm" ? "npm run" : config.packageManager} dev
-      `.trim(),
-			"Next steps",
+		// Show correct path for cd command
+		const relativePath = relative(process.cwd(), projectPath);
+		const nextSteps = [`cd ${relativePath}`, `${config.packageManager} install`];
+
+		if (config.includeKV || config.includeR2) {
+			const resources = [
+				config.includeKV && "KV namespaces",
+				config.includeR2 && "R2 buckets",
+			]
+				.filter(Boolean)
+				.join(" & ");
+			nextSteps.push(`./scripts/install-cloudflare.sh  # Setup ${resources}`);
+		}
+
+		if (config.includeGithubActions) {
+			nextSteps.push(`./scripts/setup-github-env.sh    # Configure GitHub secrets/variables`);
+		}
+
+		nextSteps.push(
+			`${config.packageManager === "bun" ? "bun run" : config.packageManager === "npm" ? "npm run" : config.packageManager} dev`,
 		);
+
+		note(nextSteps.join("\n"), "Next steps");
+
+		if (config.includeKV || config.includeR2 || config.includeGithubActions) {
+			const automationNotes: string[] = [];
+			if (config.includeKV || config.includeR2) {
+				const resources = [
+					config.includeKV && "KV namespaces",
+					config.includeR2 && "R2 buckets",
+				]
+					.filter(Boolean)
+					.join(" and ");
+				automationNotes.push(`- Run install-cloudflare.sh to create ${resources}`);
+			}
+			if (config.includeGithubActions) {
+				automationNotes.push("- Run setup-github-env.sh to configure GitHub environments");
+			}
+			note(automationNotes.join("\n"), "🤖 Automation Scripts");
+		}
 
 		outro(chalk.green("Happy coding! 🚀"));
 	} catch (error) {

@@ -2,7 +2,11 @@ import { join } from "path";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
 
-export function generateBackend(projectPath: string, config: ProjectConfig) {
+export function generateBackend(
+	projectPath: string,
+	config: ProjectConfig,
+	versions: Map<string, string>,
+) {
 	const backendPath = join(projectPath, "apps/backend");
 	createDirectory(backendPath);
 	createDirectory(join(backendPath, "src"));
@@ -11,9 +15,9 @@ export function generateBackend(projectPath: string, config: ProjectConfig) {
 
 	// package.json
 	const deps: Record<string, string> = {
-		"@hono/zod-validator": "^0.7.6",
+		"@hono/zod-validator": versions.get("@hono/zod-validator") || "^0.7.6",
 		[`@${config.name}/utils`]: "workspace:*",
-		hono: "^4.11.7",
+		hono: versions.get("hono") || "^4.11.7",
 		zod: "catalog:",
 	};
 
@@ -22,7 +26,7 @@ export function generateBackend(projectPath: string, config: ProjectConfig) {
 	}
 
 	if (config.includeAuth) {
-		deps["better-auth"] = "^1.3.12";
+		deps["better-auth"] = versions.get("better-auth") || "^1.3.12";
 	}
 
 	const packageJson = {
@@ -37,7 +41,7 @@ export function generateBackend(projectPath: string, config: ProjectConfig) {
 		dependencies: deps,
 		devDependencies: {
 			"@cloudflare/workers-types": "catalog:",
-			wrangler: "^3.107.0",
+			wrangler: versions.get("wrangler") || "^3.107.0",
 		},
 	};
 
@@ -46,7 +50,7 @@ export function generateBackend(projectPath: string, config: ProjectConfig) {
 	// tsconfig.json
 	const tsConfig = {
 		extends: "../../tsconfig.base.json",
-		include: ["src", "wrangler.toml"],
+		include: ["src", "wrangler.json"],
 		compilerOptions: {
 			types: ["@cloudflare/workers-types", "bun-types"],
 		},
@@ -54,20 +58,9 @@ export function generateBackend(projectPath: string, config: ProjectConfig) {
 
 	writeFile(join(backendPath, "tsconfig.json"), JSON.stringify(tsConfig, null, 2));
 
-	// wrangler.toml
-	const wranglerToml = `name = "${config.name}-backend"
-main = "src/index.ts"
-compatibility_date = "2025-02-04"
-compatibility_flags = ["nodejs_compat"]
-
-[env.staging]
-name = "${config.name}-backend-staging"
-
-[env.production]
-name = "${config.name}-backend"
-`;
-
-	writeFile(join(backendPath, "wrangler.toml"), wranglerToml);
+	// wrangler.json
+	const wranglerJson = generateWranglerJson(config);
+	writeFile(join(backendPath, "wrangler.json"), JSON.stringify(wranglerJson, null, 2));
 
 	// src/index.ts
 	const indexTs = generateBackendIndex(config);
@@ -159,13 +152,27 @@ function generateBackendEnv(config: ProjectConfig): string {
 		);
 	}
 
+	const cloudflareBindings: string[] = [];
+
+	if (config.includeKV) {
+		cloudflareBindings.push("\tKV: KVNamespace;");
+	}
+
+	if (config.includeR2) {
+		cloudflareBindings.push("\tR2: R2Bucket;");
+	}
+
+	const bindingsType = cloudflareBindings.length > 0
+		? ` & {\n${cloudflareBindings.join("\n")}\n}`
+		: "";
+
 	return `import { z } from "zod";
 
 const envSchema = z.object({
 ${fields.join(",\n")}
 });
 
-export type Bindings = z.infer<typeof envSchema>;
+export type Bindings = z.infer<typeof envSchema>${bindingsType};
 `;
 }
 
@@ -235,6 +242,62 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
 	await next();
 };
 `;
+}
+
+function generateWranglerJson(config: ProjectConfig) {
+	const wranglerConfig: any = {
+		name: `${config.name}-backend`,
+		main: "src/index.ts",
+		compatibility_date: "2025-02-04",
+		compatibility_flags: ["nodejs_compat"],
+	};
+
+	if (config.includeObservability) {
+		wranglerConfig.observability = {
+			enabled: true,
+		};
+	}
+
+	wranglerConfig.env = {
+		staging: {
+			name: `${config.name}-backend-staging`,
+		},
+		production: {
+			name: `${config.name}-backend`,
+		},
+	};
+
+	if (config.includeKV) {
+		wranglerConfig.env.staging.kv_namespaces = [
+			{
+				binding: "KV",
+				id: "REPLACE_WITH_KV_ID_STAGING",
+			},
+		];
+		wranglerConfig.env.production.kv_namespaces = [
+			{
+				binding: "KV",
+				id: "REPLACE_WITH_KV_ID_PRODUCTION",
+			},
+		];
+	}
+
+	if (config.includeR2) {
+		wranglerConfig.env.staging.r2_buckets = [
+			{
+				binding: "R2",
+				bucket_name: "REPLACE_WITH_R2_BUCKET_STAGING",
+			},
+		];
+		wranglerConfig.env.production.r2_buckets = [
+			{
+				binding: "R2",
+				bucket_name: "REPLACE_WITH_R2_BUCKET_PRODUCTION",
+			},
+		];
+	}
+
+	return wranglerConfig;
 }
 
 function generateBackendEnvExample(config: ProjectConfig): string {

@@ -7,6 +7,9 @@ export interface ProjectConfig {
 	includeFrontend: boolean;
 	includeDatabase: boolean;
 	includeAuth: boolean;
+	includeKV: boolean;
+	includeR2: boolean;
+	includeObservability: boolean;
 	includeGithubActions: boolean;
 }
 
