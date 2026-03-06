@@ -14,12 +14,19 @@ export function generateRootPackageJson(
 	};
 
 	if (config.includeFrontend) {
+		// Core Frontend Tooling
 		catalog["@tailwindcss/vite"] = versions.get("@tailwindcss/vite") || "^4.1.18";
+		catalog.tailwindcss = versions.get("tailwindcss") || "^4.1.18";
 		catalog["@types/react"] = versions.get("@types/react") || "^19.2.10";
+		catalog["@types/react-dom"] = versions.get("@types/react-dom") || "^19.2.3";
 		catalog.react = versions.get("react") || "^19.2.4";
 		catalog["react-dom"] = versions.get("react-dom") || "^19.2.4";
 		catalog.vite = versions.get("vite") || "^7.3.1";
 		catalog["@vitejs/plugin-react"] = versions.get("@vitejs/plugin-react") || "^6.0.1";
+
+		// Icons & Charts
+		catalog["lucide-react"] = versions.get("lucide-react") || "^0.563.0";
+		catalog.recharts = versions.get("recharts") || "^3.7.0";
 	}
 
 	const packageJson = {
@@ -59,7 +66,9 @@ export function generateRootPackageJson(
 			typecheck: `${config.packageManager === "bun" ? "bunx" : "npx"} tsc --noEmit`,
 		},
 		devDependencies: {
-			"@biomejs/biome": versions.get("@biomejs/biome") || "^1.9.4",
+			"@biomejs/biome": versions.get("@biomejs/biome") || "^2.3.13",
+			"dotenv-cli": versions.get("dotenv-cli") || "^11.0.0",
+			...(config.packageManager === "bun" ? { "bun-types": versions.get("bun-types") || "^1.3.8" } : {}),
 		},
 	};
 
@@ -219,7 +228,20 @@ ${config.description}
 
 - **Package Manager**: ${config.packageManager === "bun" ? "Bun" : config.packageManager}
 ${config.includeBackend ? "- **Backend**: Cloudflare Workers + Hono" : ""}
-${config.includeFrontend ? "- **Frontend**: Vite + React 19" : ""}
+${
+	config.includeFrontend
+		? `- **Frontend**: Vite + React 19 + TailwindCSS v4
+  - **UI Components**: shadcn/ui ready (run \`npx shadcn@latest add\`)
+  - **State Management**: TanStack Query
+  - **Forms**: React Hook Form
+  - **Animations**: Motion (Framer Motion successor)
+  - **Icons**: Lucide React
+  - **Charts**: Recharts
+  - **Notifications**: Sonner
+  - **Date Handling**: date-fns + react-day-picker
+  - **Utilities**: clsx, tailwind-merge, class-variance-authority`
+		: ""
+}
 ${config.includeDatabase ? "- **Database**: Drizzle ORM + PostgreSQL" : ""}
 ${config.includeAuth ? "- **Auth**: Better Auth" : ""}
 - **Linting/Formatting**: Biome
@@ -289,6 +311,29 @@ ${
 - \`${config.packageManager} run dev\` - Start development servers
 - \`${config.packageManager} run build\` - Build for production
 ${config.includeDatabase ? `- \`${config.packageManager} run db:migrate\` - Run database migrations` : ""}
+- \`${config.packageManager} run lint\` - Check code quality
+- \`${config.packageManager} run lint:fix\` - Fix linting issues
+- \`${config.packageManager} run format\` - Format code
+- \`${config.packageManager} run typecheck\` - Run TypeScript type checking
+${
+	config.includeFrontend
+		? `
+
+## Using shadcn/ui
+
+This project is pre-configured for shadcn/ui. To add components:
+
+\`\`\`bash
+npx shadcn@latest add button
+npx shadcn@latest add card
+# ... or any other component
+\`\`\`
+
+Components will be added to \`apps/web/src/components/ui/\`.
+
+Learn more at [shadcn/ui](https://ui.shadcn.com)`
+		: ""
+}
 
 ## License
 

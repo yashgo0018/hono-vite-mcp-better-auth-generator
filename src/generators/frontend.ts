@@ -17,9 +17,36 @@ export function generateFrontend(
 	// package.json
 	const deps: Record<string, string> = {
 		[`@${config.name}/utils`]: "workspace:*",
+
+		// Core React & Routing
 		react: "catalog:",
 		"react-dom": "catalog:",
 		"react-router-dom": versions.get("react-router-dom") || "^7.13.0",
+
+		// Icons & Charts
+		"lucide-react": "catalog:",
+		recharts: "catalog:",
+
+		// Data Fetching & Forms
+		"@tanstack/react-query": versions.get("@tanstack/react-query") || "^5.90.20",
+		"react-hook-form": versions.get("react-hook-form") || "^7.71.1",
+
+		// UI Utilities
+		clsx: versions.get("clsx") || "^2.1.1",
+		"tailwind-merge": versions.get("tailwind-merge") || "^3.4.0",
+		"class-variance-authority": versions.get("class-variance-authority") || "^0.7.1",
+
+		// Animations & Interactions
+		motion: versions.get("motion") || "^12.31.0",
+		sonner: versions.get("sonner") || "^2.0.7",
+		cmdk: versions.get("cmdk") || "^1.1.1",
+
+		// Date Handling
+		"date-fns": versions.get("date-fns") || "^4.1.0",
+		"react-day-picker": versions.get("react-day-picker") || "^9.13.0",
+
+		// shadcn/ui dependencies
+		"@radix-ui/react-slot": versions.get("@radix-ui/react-slot") || "^1.2.4",
 	};
 
 	if (config.includeBackend) {
@@ -46,6 +73,9 @@ export function generateFrontend(
 			"@vitejs/plugin-react": "catalog:",
 			typescript: "catalog:",
 			vite: "catalog:",
+			tailwindcss: "catalog:",
+			autoprefixer: versions.get("autoprefixer") || "^10.4.24",
+			postcss: versions.get("postcss") || "^8.5.6",
 		},
 	};
 
@@ -68,6 +98,16 @@ export function generateFrontend(
 	// vite.config.ts
 	const viteConfig = generateViteConfig(config);
 	writeFile(join(webPath, "vite.config.ts"), viteConfig);
+
+	// postcss.config.js
+	const postcssConfig = `export default {
+	plugins: {
+		tailwindcss: {},
+		autoprefixer: {},
+	},
+};
+`;
+	writeFile(join(webPath, "postcss.config.js"), postcssConfig);
 
 	// index.html
 	const indexHtml = generateIndexHtml(config);
@@ -100,6 +140,38 @@ export function generateFrontend(
 		const authTs = generateAuthClient(config);
 		writeFile(join(webPath, "src/auth.ts"), authTs);
 	}
+
+	// src/lib/utils.ts (shadcn/ui utility)
+	const utilsTs = `import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+	return twMerge(clsx(inputs));
+}
+`;
+	writeFile(join(webPath, "src/lib/utils.ts"), utilsTs);
+
+	// components.json (shadcn/ui config)
+	const componentsConfig = {
+		$schema: "https://ui.shadcn.com/schema.json",
+		style: "new-york",
+		rsc: false,
+		tsx: true,
+		tailwind: {
+			config: "tailwind.config.ts",
+			css: "src/index.css",
+			baseColor: "neutral",
+			cssVariables: true,
+		},
+		aliases: {
+			components: "@/components",
+			utils: "@/lib/utils",
+			ui: "@/components/ui",
+			lib: "@/lib",
+			hooks: "@/hooks",
+		},
+	};
+	writeFile(join(webPath, "components.json"), JSON.stringify(componentsConfig, null, 2));
 
 	// .env.example
 	const envExample = generateFrontendEnvExample(config);
