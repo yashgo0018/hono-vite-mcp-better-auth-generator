@@ -65,6 +65,10 @@ export function generateFrontend(
 		deps["better-auth"] = versions.get("better-auth") || "^1.3.12";
 	}
 
+	if (config.includeMcpOAuth) {
+		deps["@better-auth/oauth-provider"] = versions.get("@better-auth/oauth-provider") || "^1.4.18";
+	}
+
 	const packageJson = {
 		name: `@${config.name}/web`,
 		type: "module",
@@ -459,7 +463,7 @@ function generateAuthClient(config: ProjectConfig): string {
 
 	if (config.includeOrganizations) {
 		pluginImports.push(
-			`import { organizationClient } from "better-auth/plugins/organization/client";`,
+			`import { organizationClient } from "better-auth/client/plugins";`,
 		);
 		plugins.push("organizationClient()");
 	}
@@ -473,9 +477,10 @@ function generateAuthClient(config: ProjectConfig): string {
 ${pluginImports.join("\n")}
 import { env } from "./env";
 
-export const authClient = createAuthClient({${plugins.length > 0 ? `\n\tplugins: [${plugins.join(", ")}],` : ""}
+export const authClient = createAuthClient({
+	plugins: [${plugins.join(", ")}],
 	baseURL: env.VITE_API_ORIGIN,
-	fetch: (input, init) => {
+	fetch: (input: RequestInfo | URL, init?: RequestInit) => {
 		return fetch(input, {
 			...init,
 			credentials: "include",
