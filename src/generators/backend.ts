@@ -281,7 +281,7 @@ export const apiRoutes = new Hono()
 
 function generateAuthConfig(config: ProjectConfig): string {
 	const plugins = [];
-	const pluginImports = [];
+	const pluginImports = [`import { betterAuth } from "better-auth";`];
 
 	if (config.includeOrganizations) {
 		pluginImports.push(`import { organization } from "better-auth/plugins";`);
@@ -289,7 +289,9 @@ function generateAuthConfig(config: ProjectConfig): string {
 	}
 
 	if (config.includeMcpOAuth) {
+		pluginImports.push(`import { jwt } from "better-auth/plugins";`);
 		pluginImports.push(`import { oauthProvider } from "@better-auth/oauth-provider";`);
+		plugins.push(`jwt()`);
 		plugins.push(`\n\t\toauthProvider({
 			allowDynamicClientRegistration: true,
 			allowUnauthenticatedClientRegistration: true,
@@ -300,12 +302,13 @@ function generateAuthConfig(config: ProjectConfig): string {
 				? \`\${env.WEB_ORIGIN.replace(/\\/$/, "")}/consent\`
 				: "/consent",
 			validAudiences: (() => {
-				const audiences = [env.API_ORIGIN, env.WEB_ORIGIN];${config.includeMcp
-				? `
+				const audiences = [env.API_ORIGIN, env.WEB_ORIGIN];${
+					config.includeMcp
+						? `
 				const apiOrigin = env.API_ORIGIN.replace(/\\/$/, "");
 				audiences.push(\`\${apiOrigin}/mcp\`);`
-				: ""
-			}
+						: ""
+				}
 				return [...new Set(audiences)];
 			})(),
 			silenceWarnings: {
@@ -314,10 +317,11 @@ function generateAuthConfig(config: ProjectConfig): string {
 		})`);
 	}
 
-	return `import { betterAuth } from "better-auth";
+	const disabledPaths = config.includeMcpOAuth ? `\n\t\tdisabledPaths: ["/token"],` : "";
+
+	return `${pluginImports.join("\n")}
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-${pluginImports.join("\n")}
-import { createDb, schema } from "@${config.name}/db";
+import { createDb } from "@${config.name}/db";
 import type { Bindings } from "./env";
 
 export const createAuth = (env: Bindings) => {
@@ -328,6 +332,11 @@ export const createAuth = (env: Bindings) => {
 		secret: env.BETTER_AUTH_SECRET,
 		baseURL: env.API_ORIGIN,
 		trustedOrigins: [env.WEB_ORIGIN],
+		advanced: {
+			database: {
+				generateId: "uuid",
+			},
+		},${disabledPaths}
 	});
 };
 
