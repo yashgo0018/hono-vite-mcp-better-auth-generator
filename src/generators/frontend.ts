@@ -241,9 +241,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 }
 
 function generateAppTsx(config: ProjectConfig): string {
-	return `function App() {
-	return (
-		<div className="min-h-screen bg-gray-950 text-gray-50 flex items-center justify-center">
+	const homeContent = `\t\t<div className="min-h-screen bg-gray-950 text-gray-50 flex items-center justify-center">
 			<div className="text-center space-y-4">
 				<h1 className="text-4xl font-bold">${config.name}</h1>
 				<p className="text-gray-400">${config.description || "Welcome to your new project!"}</p>
@@ -279,7 +277,36 @@ function generateAppTsx(config: ProjectConfig): string {
 					}
 				</div>
 			</div>
-		</div>
+		</div>`;
+
+	if (config.includeMcpOAuth) {
+		return `import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ConsentPage from "./pages/consent";
+
+function Home() {
+	return (
+${homeContent}
+	);
+}
+
+function App() {
+	return (
+		<BrowserRouter>
+			<Routes>
+				<Route path="/" element={<Home />} />
+				<Route path="/consent" element={<ConsentPage />} />
+			</Routes>
+		</BrowserRouter>
+	);
+}
+
+export default App;
+`;
+	}
+
+	return `function App() {
+	return (
+${homeContent}
 	);
 }
 
@@ -350,7 +377,7 @@ function generateAuthClient(config: ProjectConfig): string {
 	const plugins = [];
 	const pluginImports = [];
 
-	if (config.includeMcpOrganizations) {
+	if (config.includeOrganizations) {
 		pluginImports.push(
 			`import { organizationClient } from "better-auth/plugins/organization/client";`,
 		);

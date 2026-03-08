@@ -42,6 +42,10 @@ export function generateMcpBackend(
 	const typesTs = generateMcpTypes(config);
 	writeFile(join(backendPath, "src/mcp/types.ts"), typesTs);
 
+	// Generate MCP utils
+	const utilsTs = generateMcpUtils();
+	writeFile(join(backendPath, "src/mcp/utils.ts"), utilsTs);
+
 	// Generate MCP route handler
 	const mcpRouteTs = generateMcpRoute(config);
 	writeFile(join(backendPath, "src/routes/mcp.ts"), mcpRouteTs);
@@ -63,312 +67,366 @@ export async function verifyMcpAccess(): Promise<boolean> {
 `;
 	}
 
-	return `import { verifyOAuthAccessToken as verifyToken } from "@better-auth/oauth-provider/resource-client";
-import { createHmac } from "crypto";
+	return `import { oauthProviderResourceClient } from "@better-auth/oauth-provider/resource-client";
+import { createAuthClient } from "better-auth/client";
+${config.includeDatabase ? `import { createDb, schema } from "@${config.name}/db";
+import { desc, eq } from "drizzle-orm";
+import { resolveDatabaseUrl } from "../lib/db-url";` : ""}
+import { getAuth } from "../auth";
+import type { Bindings } from "../env";
 
-export async function verifyOAuthAccessToken(
-	accessToken: string,
-	apiOrigin: string,
-) {
-	const result = await verifyToken({
-		token: accessToken,
-		issuer: apiOrigin,
+/** Verify OAuth 2.1 access token and return userId, or null if invalid. */
+export async function verifyOAuthAccessToken({
+	env,
+	accessToken,
+	issuer,
+	audience,
+}: {
+	env: Bindings;
+	accessToken: string;
+	issuer: string;
+	audience: string;
+}): Promise<{ userId: string } | null> {
+	const auth = getAuth(env);
+	const serverClient = createAuthClient({
+		plugins: [oauthProviderResourceClient(auth)],
 	});
-
-	if (!result.valid) {
-		throw new Error("Invalid access token");
+	try {
+		const payload = await serverClient.verifyAccessToken(accessToken, {
+			verifyOptions: { issuer, audience },
+		});
+		const sub = payload?.sub;
+		if (typeof sub !== "string") return null;
+		return { userId: sub };
+	} catch {
+		return null;
 	}
-
-	return { userId: result.userId, organizationId: result.organizationId };
 }
 
-export function getSessionCookieForMcpBearer(
-	accessToken: string,
-	secret: string,
-): string {
-	// Convert Bearer token to session cookie for API calls
-	const signedValue = createHmac("sha256", secret)
-		.update(accessToken)
-		.digest("hex");
+async function signSessionCookieValue(value: string, secret: string): Promise<string> {
+	const key = await crypto.subtle.importKey(
+		"raw",
+		new TextEncoder().encode(secret),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"],
+	);
+	const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
+	const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signature)));
+	return encodeURIComponent(\`\${value}.\${base64Signature}\`);
+}
+
+/** Convert an OAuth Bearer token into a Better Auth session cookie. */
+export async function getSessionCookieForMcpBearer({
+	env,
+	accessToken,
+	issuer,
+	audience,
+}: {
+	env: Bindings;
+	accessToken: string;
+	issuer: string;
+	audience: string;
+}): Promise<string | null> {
+	const verified = await verifyOAuthAccessToken({ env, accessToken, issuer, audience });
+	if (!verified?.userId) return null;
+${config.includeDatabase ? `
+	const db = createDb(resolveDatabaseUrl(env));
+	const [authSession] = await db
+		.select({ token: schema.session.token })
+		.from(schema.session)
+		.where(eq(schema.session.userId, verified.userId))
+		.orderBy(desc(schema.session.updatedAt))
+		.limit(1);
+
+	if (!authSession?.token) return null;
+
+	const signedValue = await signSessionCookieValue(authSession.token, env.BETTER_AUTH_SECRET);
 	return \`better-auth.session_token=\${signedValue}\`;
-}
+` : `
+	// Without a database, fall back to empty (API calls will use Authorization header)
+	return null;
+`}}
 `;
 }
 
 function generateMcpSession(config: ProjectConfig): string {
-	return `import type { McpServer } from "@hono/mcp";
-import type { StreamableHTTPTransport } from "@hono/mcp";
+	if (config.includeDatabase) {
+		return `import type { StreamableHTTPTransport } from "@hono/mcp";
+import { createDb, schema } from "@${config.name}/db";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { lt } from "drizzle-orm";
+import type { Bindings } from "../env";
+import { resolveDatabaseUrl } from "../lib/db-url";
+import { SESSION_TTL_MS } from "./types";
 
-export interface McpSession {
+export const sessionToServer = new Map<
+	string,
+	{ server: McpServer; transport: StreamableHTTPTransport }
+>();
+
+export async function cleanupExpiredSessions(env: Bindings): Promise<void> {
+	const db = createDb(resolveDatabaseUrl(env));
+	const cutoff = new Date(Date.now() - SESSION_TTL_MS);
+	const expired = await db
+		.select({ id: schema.mcpSession.id })
+		.from(schema.mcpSession)
+		.where(lt(schema.mcpSession.updatedAt, cutoff));
+	for (const row of expired) {
+		sessionToServer.delete(row.id);
+	}
+	if (expired.length > 0) {
+		await db.delete(schema.mcpSession).where(lt(schema.mcpSession.updatedAt, cutoff));
+	}
+}
+`;
+	}
+
+	return `import type { StreamableHTTPTransport } from "@hono/mcp";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SESSION_TTL_MS } from "./types";
+
+export interface McpSessionEntry {
 	server: McpServer;
 	transport: StreamableHTTPTransport;
 	userId: string;
-${config.includeMcpOrganizations ? "\tdefaultOrganizationId?: string;" : ""}
-	createdAt: Date;
-	lastAccessedAt: Date;
+	lastActivity: number;
 }
 
-// In-memory session store (consider using KV for production)
-export const sessionStore = new Map<string, McpSession>();
+export const sessionToServer = new Map<string, McpSessionEntry>();
 
-// Session TTL: 30 minutes
-const SESSION_TTL = 30 * 60 * 1000;
-
-export function storeSession(sessionId: string, session: McpSession) {
-	sessionStore.set(sessionId, session);
-}
-
-export function getSession(sessionId: string): McpSession | undefined {
-	const session = sessionStore.get(sessionId);
-
-	if (!session) {
-		return undefined;
-	}
-
-	// Check if session expired
-	const now = new Date();
-	const elapsed = now.getTime() - session.lastAccessedAt.getTime();
-
-	if (elapsed > SESSION_TTL) {
-		sessionStore.delete(sessionId);
-		return undefined;
-	}
-
-	// Update last accessed time
-	session.lastAccessedAt = now;
-	return session;
-}
-
-export function deleteSession(sessionId: string) {
-	sessionStore.delete(sessionId);
-}
-
-// Cleanup expired sessions (call this periodically)
-export function cleanupExpiredSessions() {
-	const now = new Date();
-
-	for (const [sessionId, session] of sessionStore.entries()) {
-		const elapsed = now.getTime() - session.lastAccessedAt.getTime();
-
-		if (elapsed > SESSION_TTL) {
-			sessionStore.delete(sessionId);
-		}
+export function cleanupExpiredSessions(): void {
+	const cutoff = Date.now() - SESSION_TTL_MS;
+	for (const [id, entry] of sessionToServer) {
+		if (entry.lastActivity < cutoff) sessionToServer.delete(id);
 	}
 }
 `;
 }
 
 function generateMcpTools(config: ProjectConfig): string {
-	return `import { z } from "zod";
-import type { ToolExecutionContext } from "./types";
-
-export const tools = {
-	get_user: {
-		description: "Get current authenticated user information",
-		inputSchema: z.object({}),
-		async execute(ctx: ToolExecutionContext) {
-			const user = await ctx.api.get(\`/api/users/\${ctx.userId}\`);
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: JSON.stringify(user, null, 2),
-					},
-				],
-			};
-		},
+	return `// Tool definitions for the MCP protocol (JSON Schema format).
+// Execution logic lives in tool-execution.ts.
+export const tools = [
+	{
+		name: "get_user",
+		description: "Get the current authenticated user's information",
+		inputSchema: { type: "object" as const, properties: {} },
+		annotations: { readOnlyHint: true, idempotentHint: true },
 	},
-
-	list_records: {
-		description: "List example records (customize this tool for your domain)",
-		inputSchema: z.object({
-			limit: z.number().min(1).max(100).default(10),
-		}),
-		async execute(ctx: ToolExecutionContext, input: { limit: number }) {
-			// TODO: Implement your domain-specific record listing
-			const records = await ctx.api.get(\`/api/records?limit=\${input.limit}\`);
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: JSON.stringify(records, null, 2),
-					},
-				],
-			};
+	{
+		name: "list_records",
+		description: "List example records. Customize this tool for your domain.",
+		inputSchema: {
+			type: "object" as const,
+			properties: {
+				limit: { type: "number", description: "Maximum number of records to return (default 10)" },
+			},
 		},
+		annotations: { readOnlyHint: true },
 	},
-
-	create_record: {
-		description: "Create a new record (customize this tool for your domain)",
-		inputSchema: z.object({
-			name: z.string().min(1),
-			description: z.string().optional(),
-		}),
-		async execute(
-			ctx: ToolExecutionContext,
-			input: { name: string; description?: string },
-		) {
-			// TODO: Implement your domain-specific record creation
-			const record = await ctx.api.post("/api/records", {
-				name: input.name,
-				description: input.description,
-			});
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: \`Record created successfully: \${JSON.stringify(record, null, 2)}\`,
-					},
-				],
-			};
+	{
+		name: "create_record",
+		description: "Create a new record. Customize this tool for your domain.",
+		inputSchema: {
+			type: "object" as const,
+			properties: {
+				name: { type: "string", description: "Record name (required)" },
+				description: { type: "string", description: "Optional description" },
+			},
+			required: ["name"],
 		},
+		annotations: { destructiveHint: false },
 	},
 ${
-	config.includeMcpOrganizations
-		? `
-	list_organizations: {
-		description: "List organizations the user belongs to",
-		inputSchema: z.object({}),
-		async execute(ctx: ToolExecutionContext) {
-			const orgs = await ctx.api.get("/api/organizations");
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: JSON.stringify(orgs, null, 2),
-					},
-				],
-			};
-		},
+	config.includeOrganizations
+		? `	{
+		name: "list_organizations",
+		description: "List organizations the current user belongs to",
+		inputSchema: { type: "object" as const, properties: {} },
+		annotations: { readOnlyHint: true },
 	},
-
-	switch_organization: {
-		description: "Switch the default organization for this MCP session",
-		inputSchema: z.object({
-			organizationId: z.string(),
-			sessionId: z.string().optional(),
-		}),
-		async execute(ctx: ToolExecutionContext, input: { organizationId: string; sessionId?: string }) {
-			// TODO: Validate user has access to this organization
-			// TODO: Update session's default organization in database
-			// Example: await db.update(mcpSession).set({ defaultOrganizationId: input.organizationId }).where(eq(mcpSession.id, sessionId))
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: \`Switched to organization: \${input.organizationId}\`,
-					},
-				],
-			};
+	{
+		name: "switch_organization",
+		description: "Set the default organization context for this MCP session",
+		inputSchema: {
+			type: "object" as const,
+			properties: {
+				organization_id: { type: "string", description: "Organization ID to switch to" },
+			},
+			required: ["organization_id"],
 		},
+		annotations: { idempotentHint: true },
 	},
 `
 		: ""
-}
-};
-
-export type ToolName = keyof typeof tools;
+}];
 `;
 }
 
 function generateMcpToolExecution(config: ProjectConfig): string {
-	return `import { tools } from "./tools";
-import type { ToolExecutionContext } from "./types";
+	return `import type { McpApiClient } from "./api-client";
+import type { JsonRecord, SessionInfo, ToolResult } from "./types";
+import { asString, textResult } from "./utils";
 
+export function formatError(toolName: string, error: unknown): string {
+	if (error instanceof Error) return \`Tool '\${toolName}' failed: \${error.message}\`;
+	return \`Tool '\${toolName}' failed: \${String(error)}\`;
+}
+${
+	config.includeOrganizations
+		? `
+export function resolveOrganizationId(args: JsonRecord, session: SessionInfo): string {
+	const explicit = asString(args.organization_id);
+	if (explicit) {
+		session.organizationId = explicit;
+		return explicit;
+	}
+	if (session.organizationId) return session.organizationId;
+	throw new Error(
+		"No organization selected. Use list_organizations then switch_organization to set a default.",
+	);
+}
+`
+		: ""
+}
 export async function executeTool(
 	toolName: string,
-	args: any,
-	ctx: ToolExecutionContext,
-) {
-	const tool = tools[toolName as keyof typeof tools];
+	args: JsonRecord,
+	session: SessionInfo,
+	client: McpApiClient,
+): Promise<ToolResult> {
+	switch (toolName) {
+		case "get_user": {
+			const user = await client.get(\`/api/users/\${session.userId}\`);
+			return textResult(JSON.stringify(user, null, 2), user);
+		}
 
-	if (!tool) {
-		throw new Error(\`Unknown tool: \${toolName}\`);
+		case "list_records": {
+			const limit = typeof args.limit === "number" ? args.limit : 10;
+			const records = await client.get(\`/api/records?limit=\${limit}\`);
+			return textResult(JSON.stringify(records, null, 2), records);
+		}
+
+		case "create_record": {
+			const name = asString(args.name);
+			if (!name) throw new Error("name is required");
+			const record = await client.post("/api/records", {
+				name,
+				description: asString(args.description),
+			});
+			return textResult(\`Record created: \${JSON.stringify(record, null, 2)}\`, record);
+		}
+${
+	config.includeOrganizations
+		? `
+		case "list_organizations": {
+			const orgs = await client.get("/api/organizations");
+			return textResult(JSON.stringify(orgs, null, 2), orgs);
+		}
+
+		case "switch_organization": {
+			const organizationId = resolveOrganizationId(args, session);
+			return textResult(\`Switched to organization: \${organizationId}\`);
+		}
+`
+		: ""
+}
+		default:
+			throw new Error(\`Unknown tool: \${toolName}\`);
 	}
-
-	// Validate input
-	const validatedInput = tool.inputSchema.parse(args);
-
-	// Execute tool
-	return await tool.execute(ctx, validatedInput);
 }
 `;
 }
 
-function generateMcpApiClient(config: ProjectConfig): string {
+function generateMcpApiClient(_config: ProjectConfig): string {
 	return `/**
- * API client for making authenticated requests to the backend
- * Uses session cookies for authentication
+ * Authenticated API client for MCP tool execution.
+ * Forwards the session cookie (and/or Authorization header) from the MCP request.
  */
 export class McpApiClient {
 	constructor(
 		private baseUrl: string,
-		private sessionCookie: string,
+		private headers: Record<string, string>,
 	) {}
 
-	async get(path: string): Promise<any> {
+	private buildHeaders(extra?: Record<string, string>): Record<string, string> {
+		return { ...this.headers, ...extra };
+	}
+
+	async get(path: string): Promise<unknown> {
 		const response = await fetch(\`\${this.baseUrl}\${path}\`, {
 			method: "GET",
-			headers: {
-				Cookie: this.sessionCookie,
-			},
+			headers: this.buildHeaders(),
 		});
-
-		if (!response.ok) {
-			throw new Error(\`API request failed: \${response.statusText}\`);
-		}
-
+		if (!response.ok) throw new Error(\`GET \${path} failed: \${response.statusText}\`);
 		return response.json();
 	}
 
-	async post(path: string, body: any): Promise<any> {
+	async post(path: string, body: unknown): Promise<unknown> {
 		const response = await fetch(\`\${this.baseUrl}\${path}\`, {
 			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Cookie: this.sessionCookie,
-			},
+			headers: this.buildHeaders({ "Content-Type": "application/json" }),
 			body: JSON.stringify(body),
 		});
-
-		if (!response.ok) {
-			throw new Error(\`API request failed: \${response.statusText}\`);
-		}
-
+		if (!response.ok) throw new Error(\`POST \${path} failed: \${response.statusText}\`);
 		return response.json();
 	}
 
-	async put(path: string, body: any): Promise<any> {
+	async put(path: string, body: unknown): Promise<unknown> {
 		const response = await fetch(\`\${this.baseUrl}\${path}\`, {
 			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-				Cookie: this.sessionCookie,
-			},
+			headers: this.buildHeaders({ "Content-Type": "application/json" }),
 			body: JSON.stringify(body),
 		});
-
-		if (!response.ok) {
-			throw new Error(\`API request failed: \${response.statusText}\`);
-		}
-
+		if (!response.ok) throw new Error(\`PUT \${path} failed: \${response.statusText}\`);
 		return response.json();
 	}
 
-	async delete(path: string): Promise<any> {
+	async delete(path: string): Promise<unknown> {
 		const response = await fetch(\`\${this.baseUrl}\${path}\`, {
 			method: "DELETE",
-			headers: {
-				Cookie: this.sessionCookie,
-			},
+			headers: this.buildHeaders(),
 		});
-
-		if (!response.ok) {
-			throw new Error(\`API request failed: \${response.statusText}\`);
-		}
-
+		if (!response.ok) throw new Error(\`DELETE \${path} failed: \${response.statusText}\`);
 		return response.json();
 	}
+}
+`;
+}
+
+function generateMcpUtils(): string {
+	return `import type { HeaderRecord, ToolResult } from "./types";
+import { SESSION_HEADER } from "./types";
+
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null && !Array.isArray(value);
+
+export const asString = (value: unknown): string | undefined =>
+	typeof value === "string" ? value : undefined;
+
+export const textResult = (text: string, structuredContent?: unknown): ToolResult => ({
+	content: [{ type: "text", text }],
+	...(structuredContent !== undefined ? { structuredContent } : {}),
+});
+
+export function getHeader(headers: HeaderRecord, name: string): string | undefined {
+	const lowerName = name.toLowerCase();
+	const match = Object.entries(headers).find(([key]) => key.toLowerCase() === lowerName);
+	if (!match) return undefined;
+	const value = match[1];
+	if (Array.isArray(value)) return value[0];
+	return value;
+}
+
+export function getSessionIdFromHeaders(headers: HeaderRecord): string | undefined {
+	return getHeader(headers, SESSION_HEADER) ?? getHeader(headers, "Mcp-Session-Id");
+}
+
+export function getBearerToken(headers: HeaderRecord): string | undefined {
+	const authorization = getHeader(headers, "authorization");
+	if (!authorization?.startsWith("Bearer ")) return undefined;
+	return authorization.slice("Bearer ".length).trim();
 }
 `;
 }
@@ -414,7 +472,7 @@ This is your MCP-enabled application. Use the available tools to interact with t
 - \\\`list_records\\\` - List records
 - \\\`create_record\\\` - Create a new record
 ${
-	config.includeMcpOrganizations
+	config.includeOrganizations
 		? `- \\\`list_organizations\\\` - List organizations
 - \\\`switch_organization\\\` - Switch default organization`
 		: ""
@@ -435,210 +493,274 @@ export type ResourceUri = keyof typeof resources;
 }
 
 function generateMcpTypes(config: ProjectConfig): string {
-	return `import type { McpApiClient } from "./api-client";
+	return `export type JsonRecord = Record<string, unknown>;
 
-export interface ToolExecutionContext {
+export type HeaderRecord = Record<string, string | string[] | undefined>;
+
+export type SessionInfo = {
 	userId: string;
-${config.includeMcpOrganizations ? "\tdefaultOrganizationId?: string;" : ""}
-	api: McpApiClient;
-}
+${config.includeOrganizations ? "\torganizationId?: string;" : ""}
+};
+
+export type ToolResult = {
+	content: Array<{ type: "text"; text: string }>;
+	structuredContent?: unknown;
+	isError?: boolean;
+};
+
+export const SESSION_HEADER = "mcp-session-id";
+export const SESSION_TTL_MS = 30 * 60 * 1000;
 `;
 }
 
 function generateMcpRoute(config: ProjectConfig): string {
-	const oauthImports = config.includeMcpOAuth
+	const hasOAuth = config.includeMcpOAuth;
+	const hasDB = config.includeDatabase;
+	const hasOrgs = config.includeOrganizations;
+
+	const oauthImports = hasOAuth
 		? `import { verifyOAuthAccessToken, getSessionCookieForMcpBearer } from "../mcp/auth";`
 		: "";
 
-	const authVerification = config.includeMcpOAuth
-		? `
-		// Verify OAuth access token
-		const base = c.env.API_ORIGIN;
-		const resourceMetadataUrl = \`\${base}/.well-known/oauth-protected-resource/mcp\`;
-
-		const authHeader = c.req.header("Authorization");
-		const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7).trim() : undefined;
-
-		if (!bearerToken) {
-			c.header("WWW-Authenticate", \`Bearer resource_metadata="\${resourceMetadataUrl}"\`);
-			c.header("Access-Control-Expose-Headers", "WWW-Authenticate");
-			return c.json({ error: "Unauthorized" }, 401);
-		}
-
-		let verified;
-		try {
-			verified = await verifyOAuthAccessToken(bearerToken, c.env.API_ORIGIN);
-		} catch (error) {
-			c.header("WWW-Authenticate", \`Bearer resource_metadata="\${resourceMetadataUrl}"\`);
-			c.header("Access-Control-Expose-Headers", "WWW-Authenticate");
-			return c.json({ error: "Invalid access token" }, 401);
-		}
-
-		const sessionCookie = getSessionCookieForMcpBearer(bearerToken, c.env.BETTER_AUTH_SECRET);
-`
-		: `
-		// TODO: Implement authentication
-		const verified = { userId: "user-123" };
-		const sessionCookie = ""; // TODO: Get session cookie
-`;
-
-	const databaseImports = config.includeDatabase
-		? `import { schema } from "@${config.name}/db";
-import { eq } from "drizzle-orm";`
+	const dbImports = hasDB
+		? `import { createDb, schema } from "@${config.name}/db";
+import { eq } from "drizzle-orm";
+import { resolveDatabaseUrl } from "../lib/db-url";`
 		: "";
 
-	return `import { McpServer } from "@hono/mcp";
+	// Auth block at start of route handler
+	const authBlock = hasOAuth
+		? `	const base = c.env.API_ORIGIN;
+	const resourceMetadataUrl = \`\${base}/.well-known/oauth-protected-resource\`;
+	const bearerToken = c.req.header("Authorization")?.replace(/^Bearer /, "").trim();
+
+	if (!bearerToken) {
+		c.header("WWW-Authenticate", \`Bearer resource_metadata="\${resourceMetadataUrl}"\`);
+		c.header("Access-Control-Expose-Headers", "WWW-Authenticate");
+		return c.json({ error: "Unauthorized" }, 401);
+	}
+
+	const issuer = \`\${base}/api/auth\`;
+	const audience = \`\${base}/mcp\`;
+	const verified = await verifyOAuthAccessToken({ env: c.env, accessToken: bearerToken, issuer, audience });
+	if (!verified) {
+		c.header("WWW-Authenticate", \`Bearer resource_metadata="\${resourceMetadataUrl}"\`);
+		c.header("Access-Control-Expose-Headers", "WWW-Authenticate");
+		return c.json({ error: "Unauthorized" }, 401);
+	}`
+		: `	// No OAuth - bearer token is used as userId for development
+	const bearerToken = c.req.header("Authorization")?.replace(/^Bearer /, "").trim();
+	const verified = { userId: bearerToken ?? "anonymous" };`;
+
+	// Inside CallTool handler: fetch session, get cookie, build client
+	const callToolSessionFetch = hasDB
+		? `		const db = createDb(resolveDatabaseUrl(env));
+		const [row] = await db
+			.select()
+			.from(schema.mcpSession)
+			.where(eq(schema.mcpSession.id, sessionId))
+			.limit(1);
+
+		if (!row) {
+			return { content: [{ type: "text", text: "Invalid or expired session." }], isError: true };
+		}
+
+		await db.update(schema.mcpSession).set({ updatedAt: new Date() })
+			.where(eq(schema.mcpSession.id, sessionId));
+
+		const session: SessionInfo = {
+			userId: row.userId,${hasOrgs ? "\n\t\t\torganizationId: row.defaultOrganizationId ?? undefined," : ""}
+		};`
+		: `		const entry = sessionToServer.get(sessionId);
+		if (!entry) {
+			return { content: [{ type: "text", text: "Invalid or expired session." }], isError: true };
+		}
+
+		const session: SessionInfo = { userId: entry.userId };`;
+
+	const callToolCookieBlock = hasOAuth
+		? `
+		const effectiveHeaders: HeaderRecord = { ...requestHeaders };
+		if (!getHeader(effectiveHeaders, "cookie")) {
+			const bearer = getBearerToken(effectiveHeaders);
+			if (bearer) {
+				const cookieStr = await getSessionCookieForMcpBearer({
+					env,
+					accessToken: bearer,
+					issuer: \`\${env.API_ORIGIN}/api/auth\`,
+					audience: \`\${env.API_ORIGIN}/mcp\`,
+				});
+				if (cookieStr) effectiveHeaders.cookie = cookieStr;
+			}
+		}
+		const clientHeaders: Record<string, string> = {};
+		if (effectiveHeaders.cookie) clientHeaders.cookie = effectiveHeaders.cookie as string;
+		if (effectiveHeaders.authorization) clientHeaders.authorization = effectiveHeaders.authorization as string;`
+		: `
+		const clientHeaders: Record<string, string> = {};
+		const bearer = getBearerToken(requestHeaders);
+		if (bearer) clientHeaders.authorization = \`Bearer \${bearer}\`;`;
+
+	const orgPersist = hasDB && hasOrgs
+		? `
+		if (session.organizationId) {
+			await db.update(schema.mcpSession)
+				.set({ defaultOrganizationId: session.organizationId })
+				.where(eq(schema.mcpSession.id, sessionId));
+		}`
+		: "";
+
+	const persistSession = hasDB
+		? `
+		const db = createDb(resolveDatabaseUrl(c.env));
+		await db.insert(schema.mcpSession).values({ id: sessionId, userId: verified.userId });`
+		: "";
+
+	const deleteDbRow = hasDB
+		? `
+		const db = createDb(resolveDatabaseUrl(c.env));
+		await db.delete(schema.mcpSession).where(eq(schema.mcpSession.id, sessionId));`
+		: "";
+
+	const cleanupCall = hasDB
+		? "await cleanupExpiredSessions(env);"
+		: "cleanupExpiredSessions();";
+
+	return `import {
+	CallToolRequestSchema,
+	ErrorCode,
+	ListResourcesRequestSchema,
+	ListToolsRequestSchema,
+	McpError,
+	ReadResourceRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 import { StreamableHTTPTransport } from "@hono/mcp";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Hono } from "hono";
 ${oauthImports}
-${databaseImports}
-import { storeSession, getSession, deleteSession } from "../mcp/session";
-import { executeTool } from "../mcp/tool-execution";
+${dbImports}
+import { cleanupExpiredSessions, sessionToServer } from "../mcp/session";
+import { executeTool, formatError } from "../mcp/tool-execution";
 import { tools } from "../mcp/tools";
 import { resources } from "../mcp/resources";
 import { McpApiClient } from "../mcp/api-client";
 import type { Bindings } from "../env";
+import type { HeaderRecord, SessionInfo } from "../mcp/types";
+import { SESSION_HEADER } from "../mcp/types";
+import { getBearerToken, getHeader, getSessionIdFromHeaders, isRecord } from "../mcp/utils";
+
+function createMcpServer(env: Bindings): McpServer {
+	const mcpServer = new McpServer(
+		{ name: "${config.name} MCP Server", version: "1.0.0" },
+		{ capabilities: { tools: {}, resources: {} } },
+	);
+	const server = mcpServer.server;
+
+	server.setRequestHandler(ListToolsRequestSchema, async () => ({
+		tools: tools.map(({ name, description, inputSchema, annotations }) => ({
+			name,
+			description,
+			inputSchema,
+			annotations,
+		})),
+	}));
+
+	server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+		${cleanupCall}
+
+		const requestHeaders = (extra?.requestInfo?.headers ?? {}) as HeaderRecord;
+		const sessionId = getSessionIdFromHeaders(requestHeaders);
+
+		if (!sessionId) {
+			return { content: [{ type: "text", text: "Missing mcp-session-id. Call initialize first." }], isError: true };
+		}
+
+		${callToolSessionFetch}
+		${callToolCookieBlock}
+
+		const args = isRecord(request.params.arguments) ? request.params.arguments : {};
+		const client = new McpApiClient(env.API_ORIGIN, clientHeaders);
+
+		try {
+			const result = await executeTool(request.params.name, args, session, client);
+			${orgPersist}
+			return result;
+		} catch (error) {
+			return { content: [{ type: "text", text: formatError(request.params.name, error) }], isError: true };
+		}
+	});
+
+	server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+		resources: Object.entries(resources).map(([uri, resource]) => ({
+			uri,
+			name: resource.name,
+			mimeType: resource.mimeType,
+		})),
+	}));
+
+	server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+		const resource = resources[request.params.uri as keyof typeof resources];
+		if (!resource) {
+			throw new McpError(ErrorCode.InvalidRequest, \`Unknown resource: \${request.params.uri}\`);
+		}
+		return {
+			contents: [{ uri: request.params.uri, mimeType: resource.mimeType, text: await resource.getContent() }],
+		};
+	});
+
+	return mcpServer;
+}
 
 export const mcpRoutes = new Hono<{ Bindings: Bindings }>()
-	.post("/", async (c) => {
-${authVerification}
+	.all("/", async (c) => {
+		${authBlock}
 
-		const body = await c.req.json();
-		const sessionId = c.req.header("mcp-session-id") || crypto.randomUUID();
+		if (c.req.method !== "POST") {
+			return c.json({ error: "Method not allowed" }, 405);
+		}
 
-		// Handle initialize method
+		const maybeBody = await c.req.raw.clone().json().catch(() => undefined);
+		const body = isRecord(maybeBody) ? maybeBody : undefined;
+
 		if (body?.method === "initialize") {
-			// Create new MCP server
-			const server = new McpServer({
-				name: "${config.name} MCP Server",
-				version: "1.0.0",
-			});
-
-			// Register tools
-			for (const [toolName, tool] of Object.entries(tools)) {
-				server.addTool({
-					name: toolName,
-					description: tool.description,
-					inputSchema: tool.inputSchema,
-				});
-			}
-
-			// Register resources
-			for (const [uri, resource] of Object.entries(resources)) {
-				server.addResource({
-					uri,
-					name: resource.name,
-					mimeType: resource.mimeType,
-				});
-			}
-
-			// Set up tool execution handler
-			server.setToolHandler(async (toolName, args) => {
-				const api = new McpApiClient(c.env.API_ORIGIN, sessionCookie);
-${
-	config.includeMcpOrganizations && config.includeDatabase
-		? `
-				// Fetch current session to get defaultOrganizationId
-				const db = c.get("db");
-				const [sessionRow] = await db
-					.select()
-					.from(schema.mcpSession)
-					.where(eq(schema.mcpSession.id, sessionId))
-					.limit(1);
-`
-		: ""
-}
-				const ctx = {
-					userId: verified.userId,
-${config.includeMcpOrganizations && config.includeDatabase ? "\t\t\t\t\tdefaultOrganizationId: sessionRow?.defaultOrganizationId ?? undefined," : ""}
-					api,
-				};
-				return await executeTool(toolName, args, ctx);
-			});
-
-			// Set up resource handler
-			server.setResourceHandler(async (uri) => {
-				const resource = resources[uri as keyof typeof resources];
-				if (!resource) {
-					throw new Error(\`Resource not found: \${uri}\`);
-				}
-				const content = await resource.getContent();
-				return {
-					contents: [
-						{
-							uri,
-							mimeType: resource.mimeType,
-							text: content,
-						},
-					],
-				};
-			});
-
-			// Create transport
+			const server = createMcpServer(c.env);
 			const transport = new StreamableHTTPTransport({
-				sessionIdGenerator: () => sessionId,
+				sessionIdGenerator: () => crypto.randomUUID(),
 			});
-
-			// Connect server to transport
 			await server.connect(transport);
-
-			// Store session
-			storeSession(sessionId, {
-				server,
-				transport,
-				userId: verified.userId,
-				createdAt: new Date(),
-				lastAccessedAt: new Date(),
-			});
-
-${
-	config.includeDatabase
-		? `
-			// Persist session to database (defaultOrganizationId is nullable and can be set later)
-			const db = c.get("db");
-			await db.insert(schema.mcpSession).values({
-				id: sessionId,
-				userId: verified.userId,
-			});
-`
-		: ""
-}
-
-			// Handle the initialize request
-			const response = await transport.handleRequest(c.req.raw);
-			return new Response(response.body, {
-				status: response.status,
-				headers: response.headers,
-			});
+			const response = await transport.handleRequest(c, body);
+			const sessionId = response?.headers?.get(SESSION_HEADER);
+			if (sessionId) {
+				sessionToServer.set(sessionId, { server, transport });
+				${persistSession}
+			}
+			return response;
 		}
 
-		// Handle subsequent requests
-		const session = getSession(sessionId);
-		if (!session) {
-			return c.json({ error: "Session not found or expired" }, 404);
+		const sessionId =
+			c.req.header(SESSION_HEADER) ?? c.req.header("Mcp-Session-Id") ?? undefined;
+		if (!sessionId) {
+			return c.json(
+				{ jsonrpc: "2.0", error: { code: -32600, message: "Missing mcp-session-id" }, id: null },
+				400,
+			);
 		}
 
-		const response = await session.transport.handleRequest(c.req.raw);
-		return new Response(response.body, {
-			status: response.status,
-			headers: response.headers,
-		});
+		const entry = sessionToServer.get(sessionId);
+		if (!entry) {
+			return c.json(
+				{ jsonrpc: "2.0", error: { code: -32600, message: "Unknown or expired session. Call initialize again." }, id: (body as any)?.id ?? null },
+				401,
+			);
+		}
+
+		return entry.transport.handleRequest(c, body);
 	})
 
 	.delete("/:sessionId", async (c) => {
-		const sessionId = c.params.sessionId;
-		deleteSession(sessionId);
-
-${
-	config.includeDatabase
-		? `
-		// Delete from database
-		const db = c.get("db");
-		await db.delete(schema.mcpSession).where(eq(schema.mcpSession.id, sessionId));
-`
-		: ""
-}
-
+		const sessionId = c.req.param("sessionId");
+		sessionToServer.delete(sessionId);
+		${deleteDbRow}
 		return c.json({ message: "Session deleted" });
 	});
 `;
@@ -979,7 +1101,7 @@ export async function parseSSEResponse<T = unknown>(response: Response): Promise
 
 function generateDevPreview(config: ProjectConfig): string {
 	const hasOAuth = config.includeMcpOAuth;
-	const hasOrganizations = config.includeMcpOrganizations;
+	const hasOrganizations = config.includeOrganizations;
 
 	const jwtImport = hasOAuth ? `import * as jose from "jose";` : "";
 	const sessionIdHeader = `const SESSION_ID_HEADER = "mcp-session-id";`;

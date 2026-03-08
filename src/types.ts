@@ -3,20 +3,28 @@ export interface ProjectConfig {
 	description: string;
 	author: string;
 	packageManager: "bun" | "npm" | "pnpm" | "yarn";
+
+	// Core — independent
 	includeBackend: boolean;
 	includeFrontend: boolean;
+	includeGithubActions: boolean;
+
+	// Requires includeBackend
 	includeDatabase: boolean;
-	includeAuth: boolean;
 	includeKV: boolean;
 	includeR2: boolean;
 	includeObservability: boolean;
-	includeGithubActions: boolean;
-
-	// MCP Options
 	includeMcp: boolean;
-	includeMcpOrganizations: boolean; // Requires includeMcp && includeAuth && includeDatabase
-	includeMcpOAuth: boolean; // Requires includeMcp && includeAuth
-	includeMcpWebComponents: boolean; // Requires includeMcp && includeFrontend
+
+	// Requires includeBackend && includeDatabase
+	includeAuth: boolean;
+
+	// Requires includeBackend && includeDatabase && includeAuth
+	includeOrganizations: boolean;
+
+	// MCP sub-options (require includeMcp)
+	includeMcpOAuth: boolean;         // also requires includeAuth
+	includeMcpWebComponents: boolean; // also requires includeFrontend
 }
 
 export interface TemplateData {

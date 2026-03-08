@@ -21,9 +21,11 @@ interface ProjectConfig {
 	includeObservability: boolean;
 	includeGithubActions: boolean;
 
-	// MCP Options
+	// Requires includeBackend && includeDatabase && includeAuth
+	includeOrganizations: boolean;
+
+	// MCP sub-options
 	includeMcp: boolean;
-	includeMcpOrganizations: boolean;
 	includeMcpOAuth: boolean;
 	includeMcpWebComponents: boolean;
 }
@@ -165,31 +167,54 @@ async function main() {
 		process.exit(0);
 	}
 
-	const includeDatabase = await confirm({
-		message: "Include database package (Drizzle ORM)?",
-		initialValue: true,
-	});
-
-	if (typeof includeDatabase === "symbol") {
-		outro(chalk.red("Project creation cancelled"));
-		process.exit(0);
-	}
-
-	const includeAuth = await confirm({
-		message: "Include Better Auth integration?",
-		initialValue: true,
-	});
-
-	if (typeof includeAuth === "symbol") {
-		outro(chalk.red("Project creation cancelled"));
-		process.exit(0);
-	}
-
+	let includeDatabase = false;
+	let includeAuth = false;
+	let includeOrganizations = false;
 	let includeKV = false;
 	let includeR2 = false;
 	let includeObservability = false;
 
 	if (includeBackend) {
+		const dbResponse = await confirm({
+			message: "Include database package (Drizzle ORM + PostgreSQL)?",
+			initialValue: true,
+		});
+
+		if (typeof dbResponse === "symbol") {
+			outro(chalk.red("Project creation cancelled"));
+			process.exit(0);
+		}
+
+		includeDatabase = dbResponse;
+
+		if (includeDatabase) {
+			const authResponse = await confirm({
+				message: "Include Better Auth integration?",
+				initialValue: true,
+			});
+
+			if (typeof authResponse === "symbol") {
+				outro(chalk.red("Project creation cancelled"));
+				process.exit(0);
+			}
+
+			includeAuth = authResponse;
+
+			if (includeAuth) {
+				const orgResponse = await confirm({
+					message: "Include organization support?",
+					initialValue: true,
+				});
+
+				if (typeof orgResponse === "symbol") {
+					outro(chalk.red("Project creation cancelled"));
+					process.exit(0);
+				}
+
+				includeOrganizations = orgResponse;
+			}
+		}
+
 		const kvResponse = await confirm({
 			message: "Include Cloudflare KV namespace?",
 			initialValue: false,
@@ -237,35 +262,25 @@ async function main() {
 		process.exit(0);
 	}
 
-	const includeMcp = await confirm({
-		message: "Include MCP (Model Context Protocol) server?",
-		initialValue: false,
-	});
-
-	if (typeof includeMcp === "symbol") {
-		outro(chalk.red("Project creation cancelled"));
-		process.exit(0);
-	}
-
-	let includeMcpOrganizations = false;
+	let includeMcp = false;
 	let includeMcpOAuth = false;
 	let includeMcpWebComponents = false;
 
-	if (includeMcp) {
-		if (includeAuth && includeDatabase) {
-			const mcpOrgResponse = await confirm({
-				message: "Enable organization support for MCP?",
-				initialValue: true,
-			});
+	if (includeBackend) {
+		const mcpResponse = await confirm({
+			message: "Include MCP (Model Context Protocol) server?",
+			initialValue: false,
+		});
 
-			if (typeof mcpOrgResponse === "symbol") {
-				outro(chalk.red("Project creation cancelled"));
-				process.exit(0);
-			}
-
-			includeMcpOrganizations = mcpOrgResponse;
+		if (typeof mcpResponse === "symbol") {
+			outro(chalk.red("Project creation cancelled"));
+			process.exit(0);
 		}
 
+		includeMcp = mcpResponse;
+	}
+
+	if (includeMcp) {
 		if (includeAuth) {
 			const mcpOAuthResponse = await confirm({
 				message: "Use OAuth for MCP authentication?",
@@ -308,8 +323,8 @@ async function main() {
 		includeR2,
 		includeObservability,
 		includeGithubActions,
+		includeOrganizations,
 		includeMcp,
-		includeMcpOrganizations,
 		includeMcpOAuth,
 		includeMcpWebComponents,
 	};
@@ -337,7 +352,16 @@ async function main() {
 
 		// Show correct path for cd command
 		const relativePath = relative(process.cwd(), projectPath);
+		const runCmd =
+			config.packageManager === "bun" ? "bun run"
+			: config.packageManager === "npm" ? "npm run"
+			: config.packageManager === "pnpm" ? "pnpm run"
+			: "yarn run";
 		const nextSteps = [`cd ${relativePath}`, `${config.packageManager} install`];
+
+		if (config.includeAuth && config.includeDatabase) {
+			nextSteps.push(`${runCmd} auth:generate          # Generate Better Auth schema`);
+		}
 
 		if (config.includeKV || config.includeR2) {
 			const resources = [
@@ -353,9 +377,7 @@ async function main() {
 			nextSteps.push(`./scripts/setup-github-env.sh    # Configure GitHub secrets/variables`);
 		}
 
-		nextSteps.push(
-			`${config.packageManager === "bun" ? "bun run" : config.packageManager === "npm" ? "npm run" : config.packageManager} dev`,
-		);
+		nextSteps.push(`${runCmd} dev`);
 
 		note(nextSteps.join("\n"), "Next steps");
 

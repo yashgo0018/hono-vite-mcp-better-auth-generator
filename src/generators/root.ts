@@ -46,13 +46,18 @@ export function generateRootPackageJson(
 			catalog,
 		},
 		scripts: {
-			dev: config.includeBackend && config.includeFrontend
-				? `wrangler dev --config apps/backend/wrangler.json & ${config.packageManager} --cwd apps/web dev`
-				: config.includeBackend
-					? "wrangler dev --config apps/backend/wrangler.json"
-					: config.includeFrontend
-						? `${config.packageManager} --cwd apps/web dev`
-						: undefined,
+			dev: (() => {
+				const webDevCmd =
+					config.packageManager === "bun" ? "bun --cwd apps/web dev"
+					: config.packageManager === "npm" ? "npm --prefix apps/web run dev"
+					: config.packageManager === "pnpm" ? "pnpm --dir apps/web dev"
+					: `yarn --cwd apps/web dev`;
+				if (config.includeBackend && config.includeFrontend)
+					return `wrangler dev --config apps/backend/wrangler.json & ${webDevCmd}`;
+				if (config.includeBackend) return "wrangler dev --config apps/backend/wrangler.json";
+				if (config.includeFrontend) return webDevCmd;
+				return undefined;
+			})(),
 			build: [
 				config.includeFrontend && `${config.packageManager} --cwd apps/web build`,
 				config.includeBackend && `${config.packageManager} --cwd apps/backend build`,
@@ -223,7 +228,7 @@ export function generateVSCodeSettings(projectPath: string) {
 	writeFile(join(projectPath, ".vscode/settings.json"), JSON.stringify(settings, null, 2));
 
 	const extensions = {
-		recommendations: ["biomejs.biome", "dbaeumer.vscode-eslint", "bradlc.vscode-tailwindcss"],
+		recommendations: ["biomejs.biome", "bradlc.vscode-tailwindcss"],
 	};
 
 	writeFile(join(projectPath, ".vscode/extensions.json"), JSON.stringify(extensions, null, 2));
@@ -379,7 +384,7 @@ Authorization: Bearer {access_token}
 - \`list_records\` - List example records
 - \`create_record\` - Create a new record
 ${
-	config.includeMcpOrganizations
+	config.includeOrganizations
 		? `- \`list_organizations\` - List user organizations
 - \`switch_organization\` - Change default organization`
 		: ""

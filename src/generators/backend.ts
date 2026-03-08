@@ -83,6 +83,14 @@ export function generateBackend(
 	const envTs = generateBackendEnv(config);
 	writeFile(join(backendPath, "src/env.ts"), envTs);
 
+	// src/lib/response.ts
+	writeFile(join(backendPath, "src/lib/response.ts"), generateResponseHelpers());
+
+	// src/lib/db-url.ts
+	if (config.includeDatabase) {
+		writeFile(join(backendPath, "src/lib/db-url.ts"), generateDbUrl());
+	}
+
 	// src/routes/api.ts
 	const apiTs = generateApiRoutes(config);
 	writeFile(join(backendPath, "src/routes/api.ts"), apiTs);
@@ -113,11 +121,39 @@ export function generateBackend(
 	}
 }
 
+function generateResponseHelpers(): string {
+	return `import type { Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+
+export const ok = <T>(c: Context, data: T, status: ContentfulStatusCode = 200) =>
+	c.json({ success: true, data }, status);
+
+export const fail = (
+	c: Context,
+	message: string,
+	status: ContentfulStatusCode = 400,
+	details?: unknown,
+) => c.json({ success: false, error: message, details }, status);
+
+export const notImplemented = (c: Context, message = "Not implemented") =>
+	fail(c, message, 501);
+`;
+}
+
+function generateDbUrl(): string {
+	return `import type { Bindings } from "../env";
+
+export const resolveDatabaseUrl = (env: Pick<Bindings, "DATABASE_URL" | "HYPERDRIVE">) =>
+	env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL;
+`;
+}
+
 function generateBackendIndex(config: ProjectConfig): string {
 	const imports = [`import { Hono } from "hono";`, `import { cors } from "hono/cors";`];
 
 	if (config.includeDatabase) {
 		imports.push(`import { createDb } from "@${config.name}/db";`);
+		imports.push(`import { resolveDatabaseUrl } from "./lib/db-url";`);
 	}
 
 	imports.push(`import type { Bindings } from "./env";`);
@@ -133,7 +169,7 @@ function generateBackendIndex(config: ProjectConfig): string {
 
 	const contextSetup = config.includeDatabase
 		? `	.use(async (c, next) => {
-		const db = createDb(c.env.DATABASE_URL);
+		const db = createDb(resolveDatabaseUrl(c.env));
 		c.set("db", db);
 		await next();
 	})`
@@ -186,6 +222,10 @@ function generateBackendEnv(config: ProjectConfig): string {
 
 	const cloudflareBindings: string[] = [];
 
+	if (config.includeDatabase) {
+		cloudflareBindings.push("\tHYPERDRIVE?: Hyperdrive;");
+	}
+
 	if (config.includeKV) {
 		cloudflareBindings.push("\tKV: KVNamespace;");
 	}
@@ -209,7 +249,7 @@ export type Bindings = z.infer<typeof envSchema>${bindingsType};
 }
 
 function generateApiRoutes(config: ProjectConfig): string {
-	const imports = [`import { Hono } from "hono";`];
+	const imports = [`import { Hono } from "hono";`, `import { ok, fail } from "../lib/response";`];
 
 	if (config.includeAuth) {
 		imports.push(`import { requireAuth } from "../lib/middlewares";`);
@@ -218,7 +258,7 @@ function generateApiRoutes(config: ProjectConfig): string {
 	const routes = config.includeAuth
 		? `	.get("/protected", requireAuth, (c) => {
 		const user = c.get("user");
-		return c.json({ message: "Protected route", user });
+		return ok(c, { user });
 	})`
 		: "";
 
@@ -226,7 +266,7 @@ function generateApiRoutes(config: ProjectConfig): string {
 
 export const apiRoutes = new Hono()
 	.get("/health", (c) => {
-		return c.json({ status: "ok", timestamp: new Date().toISOString() });
+		return ok(c, { status: "ok", timestamp: new Date().toISOString() });
 	})${routes};
 `;
 }
@@ -235,7 +275,7 @@ function generateAuthConfig(config: ProjectConfig): string {
 	const plugins = [];
 	const pluginImports = [];
 
-	if (config.includeMcpOrganizations) {
+	if (config.includeOrganizations) {
 		pluginImports.push(`import { organization } from "better-auth/plugins";`);
 		plugins.push(`organization()`);
 	}
@@ -309,7 +349,7 @@ export const auth = getAuth(process.env as unknown as Bindings);
 `;
 }
 
-function generateMiddlewares(config: ProjectConfig): string {
+function generateMiddlewares(_config: ProjectConfig): string {
 	return `import type { MiddlewareHandler } from "hono";
 import { createAuth } from "../auth";
 
