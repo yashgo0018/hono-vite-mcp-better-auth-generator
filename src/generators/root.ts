@@ -190,17 +190,17 @@ export function generateVSCodeSettings(projectPath: string) {
 }
 
 export function generateReadme(projectPath: string, config: ProjectConfig) {
-	const content = `# ${config.name}
+	const pm = config.packageManager;
+	const npx = pm === "bun" ? "bunx" : "npx";
 
-${config.description}
-
-## Tech Stack
-
-- **Package Manager**: ${config.packageManager === "bun" ? "Bun" : config.packageManager}
-${config.includeBackend ? "- **Backend**: Cloudflare Workers + Hono" : ""}
-${config.includeMcp ? "- **MCP Server**: Model Context Protocol with OAuth authentication" : ""}
-${config.includeFrontend
-			? `- **Frontend**: Vite + React 19 + TailwindCSS v4
+	// ── Tech Stack ──────────────────────────────────────────────────────────────
+	const techStack = [
+		`- **Package Manager**: ${pm === "bun" ? "Bun" : pm}`,
+		config.includeBackend && "- **Backend**: Cloudflare Workers + Hono",
+		config.includeMcp &&
+			`- **MCP Server**: Model Context Protocol${config.includeMcpOAuth ? " with OAuth 2.0" : ""}`,
+		config.includeFrontend &&
+			`- **Frontend**: Vite + React 19 + TailwindCSS v4
   - **UI Components**: shadcn/ui ready (run \`npx shadcn@latest add\`)
   - **State Management**: TanStack Query
   - **Forms**: React Hook Form
@@ -209,110 +209,216 @@ ${config.includeFrontend
   - **Charts**: Recharts
   - **Notifications**: Sonner
   - **Date Handling**: date-fns + react-day-picker
-  - **Utilities**: clsx, tailwind-merge, class-variance-authority`
-			: ""
-		}
-${config.includeDatabase ? "- **Database**: Drizzle ORM + PostgreSQL" : ""}
-${config.includeAuth ? "- **Auth**: Better Auth" : ""}
-- **Linting/Formatting**: Biome
+  - **Utilities**: clsx, tailwind-merge, class-variance-authority`,
+		config.includeDatabase && "- **Database**: Drizzle ORM + PostgreSQL (Cloudflare Hyperdrive)",
+		config.includeAuth &&
+			`- **Auth**: Better Auth${config.includeGoogleAuth ? " + Google OAuth" : ""}${config.includeOrganizations ? " + Organizations" : ""}`,
+		"- **Linting/Formatting**: Biome",
+	]
+		.filter(Boolean)
+		.join("\n");
 
-## Project Structure
+	// ── Project Structure ────────────────────────────────────────────────────────
+	const webTree = config.includeFrontend
+		? config.includeAuth
+			? `│   └── web/              # Vite + React frontend
+│       └── src/
+│           ├── context/      # AuthContext & AuthProvider
+│           ├── routes/       # Page routes (auth/, dashboard/)
+│           └── components/   # Navbar + shared components`
+			: "│   └── web/              # Vite + React frontend"
+		: "";
 
-\`\`\`
-${config.name}/
-├── apps/
-${config.includeBackend ? "│   ├── backend/          # Cloudflare Workers API" : ""}
-${config.includeFrontend ? "│   └── web/              # Vite + React frontend" : ""}
-├── packages/
-${config.includeDatabase ? "│   ├── db/               # Drizzle ORM schema" : ""}
-│   └── utils/            # Shared utilities
-${config.includeMcpWebComponents ? "│   └── web-components/   # ChatGPT widgets" : ""}
-├── package.json
-├── tsconfig.base.json
-└── biome.json
-\`\`\`
+	const projectTree = [
+		`${config.name}/`,
+		"├── apps/",
+		config.includeBackend && "│   ├── backend/          # Cloudflare Workers API",
+		config.includeFrontend && webTree,
+		"├── packages/",
+		config.includeDatabase && "│   ├── db/               # Drizzle ORM schema + migrations",
+		"│   └── utils/            # Shared utilities",
+		config.includeMcpWebComponents && "│   └── web-components/   # ChatGPT interactive widgets",
+		"├── package.json",
+		"├── tsconfig.base.json",
+		"└── biome.json",
+	]
+		.filter(Boolean)
+		.join("\n");
 
-## Getting Started
+	// ── Getting Started ──────────────────────────────────────────────────────────
+	const needsEnv = config.includeDatabase || config.includeAuth;
+	const needsAuthGenerate = config.includeAuth && config.includeDatabase;
 
-1. Install dependencies:
+	let gettingStartedSteps = `1. Install dependencies:\n\n\`\`\`bash\n${pm} install\n\`\`\`\n`;
 
-\`\`\`bash
-${config.packageManager} install
-\`\`\`
-
-${config.includeDatabase
-			? `2. Set up environment variables:
+	if (needsEnv) {
+		const envStep = needsAuthGenerate ? 2 : 2;
+		gettingStartedSteps += `
+${envStep}. Set up environment variables:
 
 \`\`\`bash
 cp apps/backend/.env.example apps/backend/.env
-# Edit apps/backend/.env with your configuration
+# Edit apps/backend/.env with your database URL${config.includeGoogleAuth ? ", Google OAuth credentials," : ""} and other secrets
+\`\`\`
+`;
+		if (config.includeGoogleAuth) {
+			gettingStartedSteps += `
+   > **Google OAuth**: Create credentials at [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+   > Set **Authorized redirect URIs** to \`http://localhost:8787/api/auth/callback/google\`.
+   > Copy **Client ID** and **Client Secret** into \`.env\`.
+`;
+		}
+
+		if (needsAuthGenerate) {
+			gettingStartedSteps += `
+3. Generate the Better Auth database schema:
+
+\`\`\`bash
+${pm} run auth:generate
 \`\`\`
 
+4. Run database migrations:
+
+\`\`\`bash
+${pm} run db:migrate
+\`\`\`
+
+5. Start development server:
+`;
+		} else {
+			gettingStartedSteps += `
 3. Run database migrations:
 
 \`\`\`bash
-${config.packageManager} run db:migrate
+${pm} run db:migrate
 \`\`\`
 
 4. Start development server:
-`
-			: "2. Start development server:"
+`;
 		}
+	} else {
+		gettingStartedSteps += "\n2. Start development server:\n";
+	}
 
+	gettingStartedSteps += `
 \`\`\`bash
-${config.packageManager} run dev
+${pm} run dev
+\`\`\`
+`;
+
+	if (config.includeBackend && config.includeFrontend) {
+		gettingStartedSteps += "\n- Backend: http://localhost:8787\n- Frontend: http://localhost:5173\n";
+	} else if (config.includeBackend) {
+		gettingStartedSteps += "\n- Backend: http://localhost:8787\n";
+	} else if (config.includeFrontend) {
+		gettingStartedSteps += "\n- Frontend: http://localhost:5173\n";
+	}
+
+	// ── Available Scripts ────────────────────────────────────────────────────────
+	const scripts = [
+		`- \`${pm} run dev\` - Start development servers`,
+		`- \`${pm} run build\` - Build for production`,
+		needsAuthGenerate &&
+			`- \`${pm} run auth:generate\` - Generate Better Auth database schema from your auth config`,
+		config.includeDatabase && `- \`${pm} run db:migrate\` - Run database migrations`,
+		`- \`${pm} run lint\` - Check code quality`,
+		`- \`${pm} run lint:fix\` - Fix linting issues`,
+		`- \`${pm} run format\` - Format code`,
+		`- \`${pm} run typecheck\` - Run TypeScript type checking`,
+		config.includeMcpWebComponents &&
+			`- \`${pm} --cwd packages/web-components run build:all\` - Build MCP web components`,
+	]
+		.filter(Boolean)
+		.join("\n");
+
+	// ── Auth Section ─────────────────────────────────────────────────────────────
+	const authSection =
+		config.includeAuth && config.includeFrontend
+			? `
+## Authentication
+
+Better Auth is configured in \`apps/backend/src/auth.ts\`.
+
+### Pages
+
+| Route | Description |
+|-------|-------------|
+| \`/auth/login\` | Sign in with email/password${config.includeGoogleAuth ? " or Google" : ""} |
+| \`/auth/signup\` | Create a new account${config.includeGoogleAuth ? " or sign up with Google" : ""} |
+| \`/dashboard\` | Protected — requires authentication |
+
+### How it works
+
+- \`AuthProvider\` (in \`src/context/auth.tsx\`) fetches the session on mount and listens for session changes.
+- \`AuthGuard\` (in \`src/routes/layouts/AuthGuard.tsx\`) redirects unauthenticated users to \`/auth/login\` and authenticated users away from auth pages.
+- The \`Navbar\` shows **Sign in / Get started** links when logged out and **Dashboard / Sign out** when logged in.
+${
+	config.includeGoogleAuth
+		? `
+### Google OAuth
+
+Set these variables in \`apps/backend/.env\`:
+
+\`\`\`env
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
 \`\`\`
 
-${config.includeBackend && config.includeFrontend
-			? `
-- Backend: http://localhost:8787
-- Frontend: http://localhost:5173
+Authorized redirect URI: \`{BACKEND_URL}/api/auth/callback/google\`
 `
-			: config.includeBackend
-				? "- Backend: http://localhost:8787"
-				: config.includeFrontend
-					? "- Frontend: http://localhost:5173"
-					: ""
-		}
+		: ""
+}`
+			: "";
 
-## Available Scripts
+	// ── Organizations Section ────────────────────────────────────────────────────
+	const orgsSection = config.includeOrganizations
+		? `
+## Organizations
 
-- \`${config.packageManager} run dev\` - Start development servers
-- \`${config.packageManager} run build\` - Build for production
-${config.includeDatabase ? `- \`${config.packageManager} run db:migrate\` - Run database migrations` : ""}
-${config.includeAuth && config.includeDatabase ? `- \`${config.packageManager} run auth:generate\` - Generate Better Auth database schema` : ""}
-- \`${config.packageManager} run lint\` - Check code quality
-- \`${config.packageManager} run lint:fix\` - Fix linting issues
-- \`${config.packageManager} run format\` - Format code
-- \`${config.packageManager} run typecheck\` - Run TypeScript type checking
-${config.includeMcpWebComponents ? `- \`${config.packageManager} --cwd packages/web-components run build:all\` - Build MCP web components` : ""}
-${config.includeFrontend
-			? `
+Organizations are enabled via Better Auth's \`organization()\` plugin.
 
+- Users can belong to multiple organizations with role-based access (owner / admin / member).
+- The active organization is tracked per-session.
+${config.includeMcp ? "- MCP tools `list_organizations` and `switch_organization` are available for AI assistant access." : ""}
+
+Manage organizations through the Better Auth client:
+
+\`\`\`ts
+import { authClient } from "@/lib/auth-client";
+
+const { data } = await authClient.organization.list();
+await authClient.organization.setActive({ organizationId: "..." });
+\`\`\`
+`
+		: "";
+
+	// ── shadcn/ui Section ────────────────────────────────────────────────────────
+	const shadcnSection = config.includeFrontend
+		? `
 ## Using shadcn/ui
 
 This project is pre-configured for shadcn/ui. To add components:
 
 \`\`\`bash
-npx shadcn@latest add button
-npx shadcn@latest add card
-# ... or any other component
+${npx} shadcn@latest add button
+${npx} shadcn@latest add card
 \`\`\`
 
 Components will be added to \`apps/web/src/components/ui/\`.
 
 Learn more at [shadcn/ui](https://ui.shadcn.com)`
-			: ""
-		}
-${config.includeMcp
-			? `
+		: "";
 
+	// ── MCP Section ──────────────────────────────────────────────────────────────
+	const mcpSection = config.includeMcp
+		? `
 ## MCP (Model Context Protocol) Server
 
 This project includes an MCP server at \`/mcp\` for AI assistant integration.
 
-${config.includeMcpOAuth
-				? `### Authentication
+${
+	config.includeMcpOAuth
+		? `### Authentication
 
 The MCP server uses OAuth 2.0 for authentication:
 
@@ -320,23 +426,23 @@ The MCP server uses OAuth 2.0 for authentication:
 2. Obtain an access token via the OAuth flow
 3. Connect to the MCP server with the Bearer token in the Authorization header
 
-\`\`\`bash
-# Example: Connect to MCP server
+\`\`\`
 Authorization: Bearer {access_token}
 \`\`\``
-				: ""
-			}
+		: ""
+}
 
 ### Available Tools
 
 - \`get_user\` - Get current user information
 - \`list_records\` - List example records
 - \`create_record\` - Create a new record
-${config.includeOrganizations
-				? `- \`list_organizations\` - List user organizations
+${
+	config.includeOrganizations
+		? `- \`list_organizations\` - List user organizations
 - \`switch_organization\` - Change default organization`
-				: ""
-			}
+		: ""
+}
 
 Add your own tools in \`apps/backend/src/mcp/tools.ts\`
 
@@ -345,20 +451,46 @@ Add your own tools in \`apps/backend/src/mcp/tools.ts\`
 - \`doc://app/getting-started\` - Getting started guide
 ${config.includeMcpWebComponents ? "- `ui://widget/example.html` - Example interactive widget" : ""}
 
-${config.includeMcpWebComponents
-				? `### Web Components (ChatGPT Integration)
+${
+	config.includeMcpWebComponents
+		? `### Web Components (ChatGPT Integration)
 
 Build interactive widgets for ChatGPT:
 
 \`\`\`bash
-${config.packageManager} --cwd packages/web-components run build:all
+${pm} --cwd packages/web-components run build:all
 \`\`\`
 
 Widgets are exposed as MCP resources with \`ui://widget/\` URIs.`
-				: ""
-			}`
-			: ""
-		}
+		: ""
+}`
+		: "";
+
+	const content = `# ${config.name}
+
+${config.description}
+
+## Tech Stack
+
+${techStack}
+
+## Project Structure
+
+\`\`\`
+${projectTree}
+\`\`\`
+
+## Getting Started
+
+${gettingStartedSteps}
+
+## Available Scripts
+
+${scripts}
+${authSection}
+${orgsSection}
+${shadcnSection}
+${mcpSection}
 
 ## License
 
