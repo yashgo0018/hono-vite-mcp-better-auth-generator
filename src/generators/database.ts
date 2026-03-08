@@ -1,6 +1,7 @@
 import { join } from "path";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
+import { databaseGitignore } from "../gitignore";
 
 export function generateDatabasePackage(
 	projectPath: string,
@@ -160,4 +161,6 @@ export {};
 `;
 
 	writeFile(join(dbPath, ".env.example"), envExample);
+
+	writeFile(join(dbPath, ".gitignore"), databaseGitignore);
 }

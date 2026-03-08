@@ -1,6 +1,7 @@
 import { join } from "path";
 import type { ProjectConfig } from "../../types";
 import { createDirectory, writeFile } from "../../utils/file-utils";
+import { frontendGitignore } from "../../gitignore";
 import { generateViteConfig, generateIndexHtml, generateIndexCss } from "./config-files";
 import { generateMainTsx, generateAppTsx } from "./app";
 import { generateFrontendEnv, generateFrontendEnvExample, generateApiClient, generateAuthClient } from "./env";
@@ -206,6 +207,8 @@ export function cn(...inputs: ClassValue[]) {
 	// .env.example
 	const envExample = generateFrontendEnvExample(config);
 	writeFile(join(webPath, ".env.example"), envExample);
+
+	writeFile(join(webPath, ".gitignore"), frontendGitignore);
 
 	// OAuth consent page
 	if (config.includeMcpOAuth) {

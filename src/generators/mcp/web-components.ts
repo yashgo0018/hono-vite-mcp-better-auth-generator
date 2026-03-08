@@ -1,6 +1,7 @@
 import { join } from "path";
 import type { ProjectConfig } from "../../types";
 import { createDirectory, writeFile } from "../../utils/file-utils";
+import { webComponentsGitignore } from "../../gitignore";
 
 export function generateMcpWebComponents(
 	projectPath: string,
@@ -11,6 +12,7 @@ export function generateMcpWebComponents(
 
 	const webComponentsPath = join(projectPath, "packages/web-components");
 	createDirectory(webComponentsPath);
+	writeFile(join(webComponentsPath, ".gitignore"), webComponentsGitignore);
 	createDirectory(join(webComponentsPath, "src"));
 	createDirectory(join(webComponentsPath, "src/components"));
 	createDirectory(join(webComponentsPath, "src/utils"));

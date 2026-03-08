@@ -1,6 +1,7 @@
 import { join } from "path";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
+import { backendGitignore } from "../gitignore";
 import { generateMcpBackend } from "./mcp/index";
 import { generateAuthConfig, generateAuthWithEnv, generateMiddlewares } from "./backend/auth";
 
@@ -115,6 +116,8 @@ export function generateBackend(
 	// .env.example
 	const envExample = generateBackendEnvExample(config);
 	writeFile(join(backendPath, ".env.example"), envExample);
+
+	writeFile(join(backendPath, ".gitignore"), backendGitignore);
 
 	// MCP integration
 	if (config.includeMcp) {

@@ -1,6 +1,7 @@
 import { join } from "path";
 import type { ProjectConfig } from "../types";
 import { writeFile } from "../utils/file-utils";
+import { rootGitignore } from "../gitignore";
 
 export function generateRootPackageJson(
 	projectPath: string,
@@ -149,51 +150,7 @@ export function generateBiomeConfig(projectPath: string) {
 }
 
 export function generateGitignore(projectPath: string) {
-	const content = `# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Testing
-coverage/
-
-# Production
-dist/
-build/
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# IDE
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Cloudflare
-.wrangler/
-.dev.vars
-
-# Better Auth
-packages/db/src/auth-schema.ts
-
-# Misc
-*.tsbuildinfo
-`;
-
-	writeFile(join(projectPath, ".gitignore"), content);
+	writeFile(join(projectPath, ".gitignore"), rootGitignore);
 }
 
 export function generateVSCodeSettings(projectPath: string) {

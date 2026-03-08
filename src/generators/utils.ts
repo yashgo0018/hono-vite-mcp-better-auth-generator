@@ -1,6 +1,7 @@
 import { join } from "path";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
+import { utilsGitignore } from "../gitignore";
 
 export function generateUtilsPackage(projectPath: string, config: ProjectConfig) {
 	const utilsPath = join(projectPath, "packages/utils");
@@ -51,4 +52,6 @@ export const sleep = (ms: number): Promise<void> => {
 `;
 
 	writeFile(join(utilsPath, "src/index.ts"), indexTs);
+
+	writeFile(join(utilsPath, ".gitignore"), utilsGitignore);
 }
