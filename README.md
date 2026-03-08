@@ -4,19 +4,23 @@ A powerful CLI tool to scaffold full-stack projects with modern technologies inc
 
 ## Features
 
-- 🚀 **Interactive CLI** - Guided project setup with beautiful prompts
-- 📦 **Monorepo Structure** - Bun workspaces with catalog dependencies
-- ⚡ **Cloudflare Workers** - Serverless backend with Hono framework
-- 🎨 **Modern Frontend** - Vite + React 19 + Tailwind CSS v4
-- 🗄️ **Type-Safe Database** - Drizzle ORM with PostgreSQL
-- 🔐 **Better Auth** - Complete authentication solution
-- 💾 **KV Storage** - Optional Cloudflare KV with automated namespace creation
-- 🪣 **R2 Object Storage** - Optional Cloudflare R2 buckets with automated creation
-- 📊 **Observability** - Optional Cloudflare logs and analytics
-- 🔄 **CI/CD Ready** - GitHub Actions workflows with automated environment setup
-- 🤖 **Automation Scripts** - One-command Cloudflare and GitHub configuration
-- 🎯 **TypeScript First** - Full type safety across the stack
-- 🛠️ **Developer Experience** - Biome for linting and formatting
+- **Interactive CLI** - Guided project setup with beautiful prompts
+- **Monorepo Structure** - Bun workspaces with catalog dependencies
+- **Cloudflare Workers** - Serverless backend with Hono framework
+- **Modern Frontend** - Vite + React 19 + Tailwind CSS v4 + shadcn/ui ready
+- **Type-Safe Database** - Drizzle ORM with PostgreSQL + Cloudflare Hyperdrive
+- **Better Auth** - Complete authentication with session management
+- **Google OAuth** - One-question setup for Google sign-in
+- **Organizations** - Role-based multi-tenant organization support
+- **Frontend Auth** - Login/signup/dashboard pages + Navbar + AuthGuard out of the box
+- **MCP Server** - Model Context Protocol server with optional OAuth 2.0
+- **KV Storage** - Optional Cloudflare KV with automated namespace creation
+- **R2 Object Storage** - Optional Cloudflare R2 buckets with automated creation
+- **Observability** - Optional Cloudflare logs and analytics
+- **CI/CD Ready** - GitHub Actions workflows with automated environment setup
+- **Automation Scripts** - One-command Cloudflare and GitHub configuration
+- **TypeScript First** - Full type safety across the stack
+- **Developer Experience** - Biome for linting and formatting, per-package `.gitignore` files
 
 ## Installation
 
@@ -40,7 +44,6 @@ create-project
 ### Direct Usage
 
 ```bash
-# Clone and run directly
 git clone <repository-url>
 cd project-builder
 bun install
@@ -70,13 +73,18 @@ The CLI will ask you for:
 3. **Author** - Your name
 4. **Package Manager** - Choose from Bun, npm, pnpm, or Yarn
 5. **Include Backend** - Cloudflare Workers + Hono API
+   - **Include Database** - Drizzle ORM with PostgreSQL
+     - **Include Auth** - Better Auth authentication
+       - **Include Google Auth** - Google OAuth social provider
+       - **Include Organizations** - Multi-tenant organization support
+   - **Include KV Namespace** - Cloudflare KV for key-value storage
+   - **Include R2 Bucket** - Cloudflare R2 for object storage
+   - **Include Observability** - Cloudflare logs and analytics
 6. **Include Frontend** - Vite + React application
-7. **Include Database** - Drizzle ORM with PostgreSQL
-8. **Include Better Auth** - Authentication system
-9. **Include KV Namespace** - Cloudflare KV for key-value storage (if backend enabled)
-10. **Include R2 Bucket** - Cloudflare R2 for object storage (if backend enabled)
-11. **Include Observability** - Enable logs and analytics in Cloudflare (if backend enabled)
-12. **Include GitHub Actions** - CI/CD workflows
+7. **Include MCP Server** - Model Context Protocol server
+   - **Include MCP OAuth** - OAuth 2.0 for MCP authentication
+   - **Include MCP Web Components** - ChatGPT interactive widgets
+8. **Include GitHub Actions** - CI/CD workflows
 
 ## Generated Project Structure
 
@@ -85,49 +93,53 @@ your-project/
 ├── apps/
 │   ├── backend/          # Cloudflare Workers API (optional)
 │   │   ├── src/
-│   │   │   ├── index.ts       # Hono app entry point
-│   │   │   ├── auth.ts        # Better Auth config (if enabled)
-│   │   │   ├── env.ts         # Environment schema
-│   │   │   ├── routes/        # API routes
-│   │   │   └── lib/           # Middlewares & utilities
-│   │   ├── wrangler.json      # Cloudflare config
+│   │   │   ├── index.ts           # Hono app entry point
+│   │   │   ├── auth.ts            # Better Auth config (if enabled)
+│   │   │   ├── auth-with-env.ts   # Auth config with env bindings (if enabled)
+│   │   │   ├── env.ts             # Cloudflare env schema
+│   │   │   ├── routes/            # API routes
+│   │   │   ├── mcp/               # MCP server (if enabled)
+│   │   │   └── lib/               # Middlewares & utilities
+│   │   ├── wrangler.json
 │   │   └── package.json
 │   └── web/              # Vite + React frontend (optional)
 │       ├── src/
-│       │   ├── main.tsx       # React entry point
-│       │   ├── App.tsx        # Root component
-│       │   ├── auth.ts        # Better Auth client (if enabled)
-│       │   ├── api.ts         # Hono RPC client (if backend enabled)
-│       │   └── components/    # React components
+│       │   ├── main.tsx           # React entry point
+│       │   ├── App.tsx            # Root component + routing
+│       │   ├── context/           # AuthContext & AuthProvider (if auth)
+│       │   ├── routes/
+│       │   │   ├── auth/          # Login & signup pages (if auth)
+│       │   │   ├── dashboard/     # Protected dashboard (if auth)
+│       │   │   └── layouts/       # AuthGuard (if auth)
+│       │   ├── components/
+│       │   │   └── Navbar.tsx     # Scroll-aware navbar (if auth)
+│       │   └── lib/               # auth-client.ts, api.ts
 │       ├── index.html
 │       ├── vite.config.ts
 │       └── package.json
 ├── packages/
 │   ├── db/               # Drizzle ORM (optional)
 │   │   ├── src/
-│   │   │   ├── index.ts       # DB factory
-│   │   │   ├── schema.ts      # Database schema
-│   │   │   └── auth-schema.ts # Better Auth tables (if enabled)
+│   │   │   ├── index.ts           # DB factory
+│   │   │   ├── schema.ts          # Database schema
+│   │   │   └── auth-schema.ts     # Better Auth tables (stub, replaced by auth:generate)
 │   │   ├── drizzle.config.ts
 │   │   └── package.json
-│   └── utils/            # Shared utilities
-│       ├── src/
-│       │   └── index.ts
-│       └── package.json
+│   ├── utils/            # Shared utilities
+│   └── web-components/   # ChatGPT widgets (if MCP web components)
 ├── .github/
 │   └── workflows/        # CI/CD (optional)
-│       ├── ci.yml             # Continuous Integration
-│       ├── deploy-backend.yml # Backend deployment
-│       ├── deploy-web.yml     # Frontend deployment
-│       └── db-migrate.yml     # Database migrations
-├── scripts/              # Automation scripts
-│   ├── install-cloudflare.sh  # Create KV namespaces (if KV enabled)
+│       ├── ci.yml
+│       ├── deploy-backend.yml
+│       ├── deploy-web.yml
+│       └── db-migrate.yml
+├── scripts/
+│   ├── install-cloudflare.sh  # Create KV/R2 resources
 │   └── setup-github-env.sh    # Configure GitHub secrets/vars
-├── package.json          # Root workspace config
-├── tsconfig.base.json    # Shared TypeScript config
-├── biome.json           # Linting & formatting
+├── package.json          # Root workspace config with catalog
+├── tsconfig.base.json
+├── biome.json
 └── README.md
-
 ```
 
 ## Tech Stack
@@ -135,11 +147,11 @@ your-project/
 ### Backend
 - **Runtime**: Cloudflare Workers
 - **Framework**: Hono (lightweight, fast, edge-compatible)
-- **Database**: Drizzle ORM with PostgreSQL
-- **Auth**: Better Auth (if enabled)
-- **KV Storage**: Cloudflare KV for key-value data (if enabled)
-- **Object Storage**: Cloudflare R2 for files and blobs (if enabled)
-- **Observability**: Cloudflare Logs & Analytics (if enabled)
+- **Database**: Drizzle ORM with PostgreSQL + Cloudflare Hyperdrive
+- **Auth**: Better Auth (JWT, organization, oauthProvider plugins)
+- **KV Storage**: Cloudflare KV (optional)
+- **Object Storage**: Cloudflare R2 (optional)
+- **Observability**: Cloudflare Logs & Analytics (optional)
 - **Validation**: Zod
 
 ### Frontend
@@ -147,6 +159,11 @@ your-project/
 - **Framework**: React 19
 - **Styling**: Tailwind CSS v4
 - **Routing**: React Router v7
+- **State Management**: TanStack Query
+- **Forms**: React Hook Form
+- **UI Components**: shadcn/ui ready
+- **Icons**: Lucide React
+- **Auth Client**: Better Auth client with session context
 - **Type-Safe API**: Hono RPC Client
 
 ### Development Tools
@@ -163,150 +180,87 @@ your-project/
 - **Object Storage**: Cloudflare R2 with automated bucket creation (optional)
 - **Monitoring**: Cloudflare Observability (optional)
 
-## Getting Started with Generated Project
+## Authentication
 
-After generating your project:
+When Better Auth is enabled, the generated project includes a complete auth flow:
 
-1. **Navigate to project directory**:
-   ```bash
-   cd your-project-name
+### Backend
+- `apps/backend/src/auth.ts` — Better Auth config with:
+  - `advanced.database.generateId: "uuid"` always set
+  - `organization()` plugin when organizations enabled
+  - `jwt()` + `oauthProvider()` + `disabledPaths: ["/token"]` when MCP OAuth enabled
+  - `socialProviders.google` when Google Auth enabled
+
+### Frontend
+- **Pages**: `/auth/login`, `/auth/signup`, `/dashboard`
+- **AuthProvider**: fetches session on mount, listens for session changes via `$sessionSignal`
+- **AuthGuard**: redirects unauthenticated users to login, saves `redirectAfterAuth` in sessionStorage
+- **Navbar**: scroll-aware frosted glass, shows Sign in/Get started or Dashboard/Sign out based on auth state, hidden on `/dashboard`
+
+### Google OAuth Setup
+1. Create credentials at [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Set Authorized redirect URI to `http://localhost:8787/api/auth/callback/google`
+3. Add to `apps/backend/.env`:
+   ```env
+   GOOGLE_CLIENT_ID=your_client_id
+   GOOGLE_CLIENT_SECRET=your_client_secret
    ```
 
-2. **Install dependencies**:
-   ```bash
-   bun install
-   ```
+## Organizations
 
-3. **Set up environment variables** (if using backend/database):
-   ```bash
-   cp apps/backend/.env.example apps/backend/.env
-   # Edit apps/backend/.env with your configuration
-   ```
+When organizations are enabled:
+- Better Auth `organization()` plugin is configured
+- Role-based access: owner / admin / member
+- Active organization tracked per-session
+- MCP tools `list_organizations` and `switch_organization` added (if MCP enabled)
+- `auth:generate` will include organization tables in the schema
 
-4. **Run database migrations** (if using database):
-   ```bash
-   bun run db:migrate
-   ```
+## MCP Server
 
-5. **Start development servers**:
-   ```bash
-   bun run dev
-   ```
+When MCP is enabled, the project includes a Model Context Protocol server at `/mcp`:
 
-   Your services will be available at:
-   - Backend: http://localhost:8787
-   - Frontend: http://localhost:5173
+- Tools: `get_user`, `list_records`, `create_record` (+ org tools if organizations enabled)
+- Resources: `doc://app/getting-started`
+- OAuth 2.0 authentication flow (if MCP OAuth enabled)
+- Web components for ChatGPT integration (if MCP web components enabled)
 
-## Available Scripts
-
-In the generated project:
+## Available Scripts (in generated project)
 
 - `bun run dev` - Start development servers
 - `bun run build` - Build for production
-- `bun run db:migrate` - Run database migrations (if database enabled)
+- `bun run auth:generate` - Generate Better Auth schema from auth config (if auth + database)
+- `bun run db:migrate` - Run database migrations (if database)
+- `bun run lint` - Check code quality
+- `bun run lint:fix` - Fix linting issues
+- `bun run format` - Format code
+- `bun run typecheck` - Run TypeScript type checking
 
 ## Automation Scripts
 
-The project includes automation scripts to streamline your deployment setup:
-
-### 1. Cloudflare Resources Setup (if KV or R2 enabled)
+### Cloudflare Resources Setup
 
 ```bash
 ./scripts/install-cloudflare.sh
 ```
 
-This script:
-- Creates KV namespaces for staging and production environments (if KV enabled)
-- Creates R2 buckets for staging and production environments (if R2 enabled)
-- Automatically updates `wrangler.json` with all resource IDs
-- Requires `wrangler` CLI to be installed and authenticated
+Creates KV namespaces and/or R2 buckets for staging and production, and updates `wrangler.json` automatically.
 
-**Prerequisites**:
-- Install wrangler: `npm install -g wrangler`
-- Login to Cloudflare: `wrangler login`
+**Prerequisites**: `wrangler` CLI installed and authenticated (`wrangler login`)
 
-**What it creates**:
-- KV Namespaces (if enabled): Staging and production namespaces with auto-generated IDs
-- R2 Buckets (if enabled): `{project-name}-staging` and `{project-name}-production` buckets
-
-### 2. GitHub Environment Setup
+### GitHub Environment Setup
 
 ```bash
 ./scripts/setup-github-env.sh
 ```
 
-This script:
-- Configures GitHub Actions secrets and variables for staging and production environments
-- Prompts you for all required values (Cloudflare API token, database URL, etc.)
-- Sets backend secrets (sensitive data like database URLs, API keys)
-- Sets frontend variables (public configuration like API origins)
-- Creates GitHub environments if they don't exist
-
-**Prerequisites**:
-- Install GitHub CLI: `gh auth login`
-- Initialize git repository and push to GitHub
-- Run from the root of your project
+Configures GitHub Actions secrets and variables for staging and production environments.
 
 **What it configures**:
-
-Backend Secrets (per environment):
-- `CLOUDFLARE_API_TOKEN` - For deployments
-- `DATABASE_URL` - PostgreSQL connection string (if database enabled)
-- `BETTER_AUTH_SECRET` - Auth secret key (if Better Auth enabled)
-- `APP_ENV` - Environment name (staging/production)
-
-Backend Variables (per environment):
-- `API_ORIGIN` - Backend URL (if Better Auth enabled)
-- `WEB_ORIGIN` - Frontend URL (if Better Auth enabled)
-
-Frontend Variables (per environment):
-- `VITE_API_ORIGIN` - Backend API URL (if backend + frontend enabled)
-
-## Configuration
-
-### Cloudflare Setup
-
-1. Install Wrangler CLI globally:
-   ```bash
-   bun add -g wrangler
-   ```
-
-2. Login to Cloudflare:
-   ```bash
-   wrangler login
-   ```
-
-3. Configure secrets (if using Better Auth):
-   ```bash
-   cd apps/backend
-   printf "%s" "$DATABASE_URL" | wrangler secret put DATABASE_URL
-   printf "%s" "$BETTER_AUTH_SECRET" | wrangler secret put BETTER_AUTH_SECRET
-   ```
-
-### Database Setup
-
-1. Create a PostgreSQL database (e.g., on Neon, Supabase, or local)
-2. Add the connection string to `apps/backend/.env`:
-   ```
-   DATABASE_URL=postgresql://user:password@host:5432/dbname
-   ```
-3. Run migrations:
-   ```bash
-   bun run db:migrate
-   ```
-
-### Better Auth Setup
-
-If you included Better Auth, configure OAuth providers in `apps/backend/src/auth.ts`:
-
-```typescript
-socialProviders: {
-  google: {
-    clientId: env.GOOGLE_CLIENT_ID,
-    clientSecret: env.GOOGLE_CLIENT_SECRET,
-  },
-}
-```
+- `CLOUDFLARE_API_TOKEN` — For deployments
+- `DATABASE_URL` — PostgreSQL connection string (if database)
+- `BETTER_AUTH_SECRET` — Auth secret (if auth)
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth (if Google Auth)
+- `APP_ENV`, `API_ORIGIN`, `WEB_ORIGIN`, `VITE_API_ORIGIN`
 
 ## Deployment
 
@@ -327,38 +281,32 @@ wrangler pages deploy dist --project-name your-project-web
 
 ### Automated Deployment
 
-GitHub Actions workflows are included for automatic deployment:
+GitHub Actions workflows included:
 - Push to `main` → Deploy to staging
 - Push to `prod` → Deploy to production
 
-**Automated Environment Setup**: Use the included `./scripts/setup-github-env.sh` script to automatically configure all required secrets and variables in your GitHub repository.
+## Configuration Features
 
-## Project Features Based on Configuration
-
-| Configuration | Features Included |
-|--------------|-------------------|
-| Backend | Cloudflare Workers, Hono API, CORS, Type-safe routes |
-| Frontend | Vite, React 19, Tailwind CSS, React Router |
-| Database | Drizzle ORM, PostgreSQL schema, Migrations setup |
-| Better Auth | User authentication, Session management, OAuth support |
-| KV Namespace | Cloudflare KV storage, Automated namespace creation script |
-| R2 Bucket | Cloudflare R2 object storage, Automated bucket creation script |
-| Observability | Cloudflare logs and analytics integration |
-| GitHub Actions | CI/CD, Linting, Type checking, Deployments, Environment management |
-
-## Development Tips
-
-1. **Hot Reload**: Both frontend and backend support hot reload in development
-2. **Type Safety**: Use Hono's RPC client for type-safe API calls from frontend
-3. **Monorepo**: Share code between apps using workspace packages
-4. **Catalog**: Use the catalog feature for consistent dependency versions
-5. **Biome**: Run `bunx biome check .` before committing
+| Feature | Details |
+|---------|---------|
+| Backend | Cloudflare Workers, Hono API, CORS, type-safe routes |
+| Frontend | Vite 7, React 19, Tailwind CSS v4, React Router v7 |
+| Database | Drizzle ORM, PostgreSQL schema, migrations |
+| Better Auth | Session management, email/password, JWT support |
+| Google OAuth | Social provider via Better Auth |
+| Organizations | Role-based multi-tenant support |
+| MCP Server | AI assistant integration with tools and resources |
+| MCP OAuth | OAuth 2.0 for secure MCP access |
+| KV Namespace | Cloudflare KV with automated namespace creation |
+| R2 Bucket | Cloudflare R2 with automated bucket creation |
+| Observability | Cloudflare logs and analytics |
+| GitHub Actions | CI/CD, linting, type checking, deployments |
 
 ## Troubleshooting
 
-### "prepare: false" in Drizzle Config
+### auth:generate must run before db:migrate
 
-This is required for Cloudflare Workers compatibility. Don't change it.
+Better Auth generates the auth schema (`packages/db/src/auth-schema.ts`) from your auth config. The generated file contains placeholder `any`-typed exports until you run `auth:generate`. Always run it before the first migration.
 
 ### CORS Issues
 
@@ -380,11 +328,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 MIT
-
-## Support
-
-For issues and questions, please open an issue on GitHub.
-
----
-
-Built with ❤️ using modern web technologies
