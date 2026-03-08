@@ -33,8 +33,6 @@ const FALLBACK_VERSIONS: Record<string, string> = {
 	// TailwindCSS
 	"@tailwindcss/vite": "^4.1.18",
 	tailwindcss: "^4.1.18",
-	autoprefixer: "^10.4.24",
-	postcss: "^8.5.6",
 
 	// Icons & Charts
 	"lucide-react": "^0.563.0",
@@ -108,8 +106,6 @@ export function collectRequiredPackages(config: ProjectConfig): string[] {
 		packages.add("vite");
 		packages.add("@vitejs/plugin-react");
 		packages.add("react-router-dom");
-		packages.add("autoprefixer");
-		packages.add("postcss");
 
 		// Icons & Charts
 		packages.add("lucide-react");

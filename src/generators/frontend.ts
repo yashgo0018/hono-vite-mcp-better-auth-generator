@@ -55,6 +55,8 @@ export function generateFrontend(
 
 		// shadcn/ui dependencies
 		"@radix-ui/react-slot": versions.get("@radix-ui/react-slot") || "^1.2.4",
+
+		zod: "catalog:",
 	};
 
 	if (config.includeBackend) {
@@ -86,8 +88,6 @@ export function generateFrontend(
 			typescript: "catalog:",
 			vite: "catalog:",
 			tailwindcss: "catalog:",
-			autoprefixer: versions.get("autoprefixer") || "^10.4.24",
-			postcss: versions.get("postcss") || "^8.5.6",
 		},
 	};
 
@@ -110,16 +110,6 @@ export function generateFrontend(
 	// vite.config.ts
 	const viteConfig = generateViteConfig(config);
 	writeFile(join(webPath, "vite.config.ts"), viteConfig);
-
-	// postcss.config.js
-	const postcssConfig = `export default {
-	plugins: {
-		tailwindcss: {},
-		autoprefixer: {},
-	},
-};
-`;
-	writeFile(join(webPath, "postcss.config.js"), postcssConfig);
 
 	// index.html
 	const indexHtml = generateIndexHtml(config);
