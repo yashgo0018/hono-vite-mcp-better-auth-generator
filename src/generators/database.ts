@@ -79,6 +79,13 @@ export type Database = ReturnType<typeof createDb>;
 	writeFile(join(dbPath, "src/index.ts"), indexTs);
 
 	// src/schema.ts
+	const needsAuthSchemaImports = config.includeMcp && config.includeAuth;
+	const authSchemaImports: string[] = [];
+	if (needsAuthSchemaImports) {
+		authSchemaImports.push("user");
+		if (config.includeOrganizations) authSchemaImports.push("organization");
+	}
+
 	const mcpSessionTable = config.includeMcp
 		? `
 // MCP Session table
@@ -88,23 +95,26 @@ export const mcpSession = pgTable("mcp_session", {
 		.primaryKey(),
 	userId: text("user_id")
 		.notNull()${config.includeAuth ? `
-		.references(() => users.id, { onDelete: "cascade" })` : ""},
-${
-	config.includeOrganizations
-		? `\tdefaultOrganizationId: text("default_organization_id")${config.includeAuth ? `
+		.references(() => user.id, { onDelete: "cascade" })` : ""},
+${config.includeOrganizations
+			? `\tdefaultOrganizationId: text("default_organization_id")${config.includeAuth ? `
 		.references(() => organization.id, { onDelete: "cascade" })` : ""},`
-		: ""
-}
+			: ""
+		}
 	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 `
 		: "";
 
+	const authSchemaImportLine = authSchemaImports.length > 0
+		? `import { ${authSchemaImports.join(", ")} } from "./auth-schema";\n`
+		: "";
+
 	const schemaTs = config.includeAuth
 		? `import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-
+${authSchemaImportLine}
 // Example table
 export const example = pgTable("example", {
 	id: uuid("id")
