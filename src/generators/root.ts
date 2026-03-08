@@ -70,7 +70,7 @@ export function generateRootPackageJson(
 					: undefined,
 			"auth:generate":
 				config.includeAuth && config.includeDatabase
-					? `${config.packageManager === "bun" ? "bunx" : "npx"} @better-auth/cli generate -y --config ./apps/backend/src/auth-with-env.ts --output ./packages/db/src/auth-schema.ts`
+					? `cd ./apps/backend && ${config.packageManager === "bun" ? "bunx" : "npx"} @better-auth/cli generate -y --config ./src/auth-with-env.ts --output ../../packages/db/src/auth-schema.ts`
 					: undefined,
 			lint: `${config.packageManager === "bun" ? "bunx" : "npx"} biome check .`,
 			"lint:fix": `${config.packageManager === "bun" ? "bunx" : "npx"} biome check --write .`,
