@@ -16,6 +16,7 @@ interface ProjectConfig {
 	includeFrontend: boolean;
 	includeDatabase: boolean;
 	includeAuth: boolean;
+	includeGoogleAuth: boolean;
 	includeKV: boolean;
 	includeR2: boolean;
 	includeObservability: boolean;
@@ -169,6 +170,7 @@ async function main() {
 
 	let includeDatabase = false;
 	let includeAuth = false;
+	let includeGoogleAuth = false;
 	let includeOrganizations = false;
 	let includeKV = false;
 	let includeR2 = false;
@@ -201,6 +203,18 @@ async function main() {
 			includeAuth = authResponse;
 
 			if (includeAuth) {
+				const googleAuthResponse = await confirm({
+					message: "Enable Google OAuth?",
+					initialValue: true,
+				});
+
+				if (typeof googleAuthResponse === "symbol") {
+					outro(chalk.red("Project creation cancelled"));
+					process.exit(0);
+				}
+
+				includeGoogleAuth = googleAuthResponse;
+
 				const orgResponse = await confirm({
 					message: "Include organization support?",
 					initialValue: true,
@@ -323,6 +337,7 @@ async function main() {
 		includeR2,
 		includeObservability,
 		includeGithubActions,
+		includeGoogleAuth,
 		includeOrganizations,
 		includeMcp,
 		includeMcpOAuth,

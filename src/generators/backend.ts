@@ -220,6 +220,13 @@ function generateBackendEnv(config: ProjectConfig): string {
 		);
 	}
 
+	if (config.includeGoogleAuth) {
+		fields.push(
+			`	GOOGLE_CLIENT_ID: z.string().min(1)`,
+			`	GOOGLE_CLIENT_SECRET: z.string().min(1)`,
+		);
+	}
+
 	const cloudflareBindings: string[] = [];
 	const cloudflareTypes: string[] = [];
 
@@ -319,6 +326,15 @@ function generateAuthConfig(config: ProjectConfig): string {
 
 	const disabledPaths = config.includeMcpOAuth ? `\n\t\tdisabledPaths: ["/token"],` : "";
 
+	const socialProviders = config.includeGoogleAuth
+		? `\n\t\tsocialProviders: {
+			google: {
+				clientId: env.GOOGLE_CLIENT_ID,
+				clientSecret: env.GOOGLE_CLIENT_SECRET,
+			},
+		},`
+		: "";
+
 	return `${pluginImports.join("\n")}
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { createDb } from "@${config.name}/db";
@@ -336,7 +352,7 @@ export const createAuth = (env: Bindings) => {
 			database: {
 				generateId: "uuid",
 			},
-		},${disabledPaths}
+		},${disabledPaths}${socialProviders}
 	});
 };
 
@@ -443,6 +459,13 @@ function generateBackendEnvExample(config: ProjectConfig): string {
 			`BETTER_AUTH_SECRET=replace-with-strong-secret`,
 			`API_ORIGIN=http://localhost:8787`,
 			`WEB_ORIGIN=http://localhost:5173`,
+		);
+	}
+
+	if (config.includeGoogleAuth) {
+		vars.push(
+			`GOOGLE_CLIENT_ID=replace-with-google-client-id`,
+			`GOOGLE_CLIENT_SECRET=replace-with-google-client-secret`,
 		);
 	}
 

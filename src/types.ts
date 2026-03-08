@@ -20,6 +20,7 @@ export interface ProjectConfig {
 	includeAuth: boolean;
 
 	// Requires includeBackend && includeDatabase && includeAuth
+	includeGoogleAuth: boolean;
 	includeOrganizations: boolean;
 
 	// MCP sub-options (require includeMcp)
