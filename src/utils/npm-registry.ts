@@ -27,7 +27,7 @@ const FALLBACK_VERSIONS: Record<string, string> = {
 	"@types/react": "^19.2.10",
 	"@types/react-dom": "^19.2.3",
 	vite: "^7.3.1",
-	"@vitejs/plugin-react": "^6.0.1",
+	"@vitejs/plugin-react": "^5.1.4",
 	"react-router-dom": "^7.13.0",
 
 	// TailwindCSS
@@ -71,83 +71,12 @@ const FALLBACK_VERSIONS: Record<string, string> = {
 
 class NpmVersionCache {
 	cache = new Map<string, string>();
-	private fetching = new Set<string>();
 
-	async getLatestVersion(packageName: string): Promise<string> {
-		// Check cache
-		if (this.cache.has(packageName)) {
-			return this.cache.get(packageName)!;
+	fetchLatestVersions(packages: string[]): Map<string, string> {
+		for (const pkg of packages) {
+			this.cache.set(pkg, FALLBACK_VERSIONS[pkg] ?? "latest");
 		}
-
-		// Prevent duplicate fetches
-		if (this.fetching.has(packageName)) {
-			// Wait for the ongoing fetch
-			while (this.fetching.has(packageName)) {
-				await new Promise((resolve) => setTimeout(resolve, 100));
-			}
-			return this.cache.get(packageName) || this.getFallbackVersion(packageName);
-		}
-
-		this.fetching.add(packageName);
-
-		try {
-			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), 5000);
-
-			const response = await fetch(`https://registry.npmjs.org/${packageName}/latest`, {
-				signal: controller.signal,
-			});
-
-			clearTimeout(timeout);
-
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}`);
-			}
-
-			const data = (await response.json()) as { version: string };
-
-			// For bun package manager, don't add ^ prefix
-			const version = packageName === "bun" ? data.version : `^${data.version}`;
-
-			this.cache.set(packageName, version);
-			return version;
-		} catch (error) {
-			// Fallback to hardcoded version
-			return this.getFallbackVersion(packageName);
-		} finally {
-			this.fetching.delete(packageName);
-		}
-	}
-
-	async fetchLatestVersions(packages: string[]): Promise<Map<string, string>> {
-		// Parallel fetch with Promise.allSettled
-		const results = await Promise.allSettled(packages.map((pkg) => this.getLatestVersion(pkg)));
-
-		// Build map with fulfilled results
-		const versionMap = new Map<string, string>();
-		packages.forEach((pkg, index) => {
-			const result = results[index];
-			if (result && result.status === "fulfilled") {
-				versionMap.set(pkg, result.value);
-			} else {
-				// Use fallback on rejection
-				versionMap.set(pkg, this.getFallbackVersion(pkg));
-			}
-		});
-
-		return versionMap;
-	}
-
-	private getFallbackVersion(packageName: string): string {
-		const fallback = FALLBACK_VERSIONS[packageName];
-		if (fallback) {
-			this.cache.set(packageName, fallback);
-			return fallback;
-		}
-		// Default fallback
-		const defaultVersion = "latest";
-		this.cache.set(packageName, defaultVersion);
-		return defaultVersion;
+		return this.cache;
 	}
 }
 

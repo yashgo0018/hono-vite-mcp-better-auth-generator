@@ -330,22 +330,11 @@ async function main() {
 	};
 
 	const s = spinner();
-	s.start("Fetching latest package versions...");
+	s.start("Generating project structure...");
 
 	try {
-		// Pre-fetch all versions
 		const allPackages = collectRequiredPackages(config);
-		await versionCache.fetchLatestVersions(allPackages);
-
-		// Show any packages using fallback versions
-		const failedPackages = allPackages.filter((pkg) => !versionCache.cache.has(pkg));
-
-		if (failedPackages.length > 0) {
-			const warningMsg = `Using fallback versions for: ${failedPackages.join(", ")}`;
-			s.message(warningMsg);
-		}
-
-		s.message("Generating project structure...");
+		versionCache.fetchLatestVersions(allPackages);
 		await generateProject(projectPath, config);
 
 		s.stop("Project created successfully!");

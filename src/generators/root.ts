@@ -49,9 +49,9 @@ export function generateRootPackageJson(
 			dev: (() => {
 				const webDevCmd =
 					config.packageManager === "bun" ? "bun --cwd apps/web dev"
-					: config.packageManager === "npm" ? "npm --prefix apps/web run dev"
-					: config.packageManager === "pnpm" ? "pnpm --dir apps/web dev"
-					: `yarn --cwd apps/web dev`;
+						: config.packageManager === "npm" ? "npm --prefix apps/web run dev"
+							: config.packageManager === "pnpm" ? "pnpm --dir apps/web dev"
+								: `yarn --cwd apps/web dev`;
 				if (config.includeBackend && config.includeFrontend)
 					return `wrangler dev --config apps/backend/wrangler.json & ${webDevCmd}`;
 				if (config.includeBackend) return "wrangler dev --config apps/backend/wrangler.json";
@@ -117,15 +117,12 @@ export function generateBiomeConfig(projectPath: string) {
 		},
 		files: {
 			ignoreUnknown: false,
-			ignore: [],
 		},
 		formatter: {
 			enabled: true,
 			lineWidth: 100,
-			indentStyle: "tab",
-		},
-		organizeImports: {
-			enabled: true,
+			indentStyle: "space",
+			indentWidth: 2,
 		},
 		linter: {
 			enabled: true,
@@ -137,6 +134,7 @@ export function generateBiomeConfig(projectPath: string) {
 			parser: {
 				cssModules: false,
 				allowWrongLineComments: true,
+				tailwindDirectives: true
 			},
 		},
 		javascript: {
@@ -244,9 +242,8 @@ ${config.description}
 - **Package Manager**: ${config.packageManager === "bun" ? "Bun" : config.packageManager}
 ${config.includeBackend ? "- **Backend**: Cloudflare Workers + Hono" : ""}
 ${config.includeMcp ? "- **MCP Server**: Model Context Protocol with OAuth authentication" : ""}
-${
-	config.includeFrontend
-		? `- **Frontend**: Vite + React 19 + TailwindCSS v4
+${config.includeFrontend
+			? `- **Frontend**: Vite + React 19 + TailwindCSS v4
   - **UI Components**: shadcn/ui ready (run \`npx shadcn@latest add\`)
   - **State Management**: TanStack Query
   - **Forms**: React Hook Form
@@ -256,8 +253,8 @@ ${
   - **Notifications**: Sonner
   - **Date Handling**: date-fns + react-day-picker
   - **Utilities**: clsx, tailwind-merge, class-variance-authority`
-		: ""
-}
+			: ""
+		}
 ${config.includeDatabase ? "- **Database**: Drizzle ORM + PostgreSQL" : ""}
 ${config.includeAuth ? "- **Auth**: Better Auth" : ""}
 - **Linting/Formatting**: Biome
@@ -286,9 +283,8 @@ ${config.includeMcpWebComponents ? "│   └── web-components/   # ChatGPT 
 ${config.packageManager} install
 \`\`\`
 
-${
-	config.includeDatabase
-		? `2. Set up environment variables:
+${config.includeDatabase
+			? `2. Set up environment variables:
 
 \`\`\`bash
 cp apps/backend/.env.example apps/backend/.env
@@ -303,25 +299,24 @@ ${config.packageManager} run db:migrate
 
 4. Start development server:
 `
-		: "2. Start development server:"
-}
+			: "2. Start development server:"
+		}
 
 \`\`\`bash
 ${config.packageManager} run dev
 \`\`\`
 
-${
-	config.includeBackend && config.includeFrontend
-		? `
+${config.includeBackend && config.includeFrontend
+			? `
 - Backend: http://localhost:8787
 - Frontend: http://localhost:5173
 `
-		: config.includeBackend
-			? "- Backend: http://localhost:8787"
-			: config.includeFrontend
-				? "- Frontend: http://localhost:5173"
-				: ""
-}
+			: config.includeBackend
+				? "- Backend: http://localhost:8787"
+				: config.includeFrontend
+					? "- Frontend: http://localhost:5173"
+					: ""
+		}
 
 ## Available Scripts
 
@@ -334,9 +329,8 @@ ${config.includeAuth && config.includeDatabase ? `- \`${config.packageManager} r
 - \`${config.packageManager} run format\` - Format code
 - \`${config.packageManager} run typecheck\` - Run TypeScript type checking
 ${config.includeMcpWebComponents ? `- \`${config.packageManager} --cwd packages/web-components run build:all\` - Build MCP web components` : ""}
-${
-	config.includeFrontend
-		? `
+${config.includeFrontend
+			? `
 
 ## Using shadcn/ui
 
@@ -351,19 +345,17 @@ npx shadcn@latest add card
 Components will be added to \`apps/web/src/components/ui/\`.
 
 Learn more at [shadcn/ui](https://ui.shadcn.com)`
-		: ""
-}
-${
-	config.includeMcp
-		? `
+			: ""
+		}
+${config.includeMcp
+			? `
 
 ## MCP (Model Context Protocol) Server
 
 This project includes an MCP server at \`/mcp\` for AI assistant integration.
 
-${
-	config.includeMcpOAuth
-		? `### Authentication
+${config.includeMcpOAuth
+				? `### Authentication
 
 The MCP server uses OAuth 2.0 for authentication:
 
@@ -375,20 +367,19 @@ The MCP server uses OAuth 2.0 for authentication:
 # Example: Connect to MCP server
 Authorization: Bearer {access_token}
 \`\`\``
-		: ""
-}
+				: ""
+			}
 
 ### Available Tools
 
 - \`get_user\` - Get current user information
 - \`list_records\` - List example records
 - \`create_record\` - Create a new record
-${
-	config.includeOrganizations
-		? `- \`list_organizations\` - List user organizations
+${config.includeOrganizations
+				? `- \`list_organizations\` - List user organizations
 - \`switch_organization\` - Change default organization`
-		: ""
-}
+				: ""
+			}
 
 Add your own tools in \`apps/backend/src/mcp/tools.ts\`
 
@@ -397,9 +388,8 @@ Add your own tools in \`apps/backend/src/mcp/tools.ts\`
 - \`doc://app/getting-started\` - Getting started guide
 ${config.includeMcpWebComponents ? "- `ui://widget/example.html` - Example interactive widget" : ""}
 
-${
-	config.includeMcpWebComponents
-		? `### Web Components (ChatGPT Integration)
+${config.includeMcpWebComponents
+				? `### Web Components (ChatGPT Integration)
 
 Build interactive widgets for ChatGPT:
 
@@ -408,10 +398,10 @@ ${config.packageManager} --cwd packages/web-components run build:all
 \`\`\`
 
 Widgets are exposed as MCP resources with \`ui://widget/\` URIs.`
-		: ""
-}`
-		: ""
-}
+				: ""
+			}`
+			: ""
+		}
 
 ## License
 

@@ -221,24 +221,32 @@ function generateBackendEnv(config: ProjectConfig): string {
 	}
 
 	const cloudflareBindings: string[] = [];
+	const cloudflareTypes: string[] = [];
 
 	if (config.includeDatabase) {
 		cloudflareBindings.push("\tHYPERDRIVE?: Hyperdrive;");
+		cloudflareTypes.push("Hyperdrive");
 	}
 
 	if (config.includeKV) {
 		cloudflareBindings.push("\tKV: KVNamespace;");
+		cloudflareTypes.push("KVNamespace");
 	}
 
 	if (config.includeR2) {
 		cloudflareBindings.push("\tR2: R2Bucket;");
+		cloudflareTypes.push("R2Bucket");
 	}
 
-	const bindingsType = cloudflareBindings.length > 0
-		? ` & {\n${cloudflareBindings.join("\n")}\n}`
-		: "";
+	const cfImport =
+		cloudflareTypes.length > 0
+			? `import type { ${cloudflareTypes.join(", ")} } from "@cloudflare/workers-types";\n`
+			: "";
 
-	return `import { z } from "zod";
+	const bindingsType =
+		cloudflareBindings.length > 0 ? ` & {\n${cloudflareBindings.join("\n")}\n}` : "";
+
+	return `${cfImport}import { z } from "zod";
 
 const envSchema = z.object({
 ${fields.join(",\n")}
@@ -292,13 +300,12 @@ function generateAuthConfig(config: ProjectConfig): string {
 				? \`\${env.WEB_ORIGIN.replace(/\\/$/, "")}/consent\`
 				: "/consent",
 			validAudiences: (() => {
-				const audiences = [env.API_ORIGIN, env.WEB_ORIGIN];${
-					config.includeMcp
-						? `
+				const audiences = [env.API_ORIGIN, env.WEB_ORIGIN];${config.includeMcp
+				? `
 				const apiOrigin = env.API_ORIGIN.replace(/\\/$/, "");
 				audiences.push(\`\${apiOrigin}/mcp\`);`
-						: ""
-				}
+				: ""
+			}
 				return [...new Set(audiences)];
 			})(),
 			silenceWarnings: {
