@@ -11,10 +11,10 @@ import {
 import { generateUtilsPackage } from "./utils";
 import { generateDatabasePackage } from "./database";
 import { generateBackend } from "./backend";
-import { generateFrontend } from "./frontend";
+import { generateFrontend } from "./frontend/index";
 import { generateGithubActions } from "./github-actions";
 import { generateScripts } from "./scripts";
-import { generateMcpWebComponents } from "./mcp";
+import { generateMcpWebComponents } from "./mcp/index";
 import { versionCache } from "../utils/npm-registry";
 
 export async function generateProject(projectPath: string, config: ProjectConfig) {
