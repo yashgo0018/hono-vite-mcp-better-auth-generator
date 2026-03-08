@@ -142,6 +142,9 @@ export function generateFrontend(
 		const authTs = generateAuthClient(config);
 		writeFile(join(webPath, "src/auth.ts"), authTs);
 
+		// src/components/Navbar.tsx
+		writeFile(join(webPath, "src/components/Navbar.tsx"), generateNavbar(config));
+
 		// Auth context + guard + pages
 		writeFile(join(webPath, "src/context/auth-context.ts"), generateAuthContext());
 		writeFile(join(webPath, "src/context/AuthContext.tsx"), generateAuthProvider());
@@ -312,11 +315,12 @@ function generateAppTsx(config: ProjectConfig): string {
 			</div>
 		</div>`;
 
-	// Auth-enabled: full router with AuthGuard
+	// Auth-enabled: full router with AuthGuard + Navbar
 	if (config.includeAuth) {
 		const imports = [
 			`import { BrowserRouter, Routes, Route } from "react-router-dom";`,
 			`import { AuthGuard } from "./routes/layouts/AuthGuard";`,
+			`import { Navbar } from "./components/Navbar";`,
 			`import { LoginPage } from "./routes/auth/LoginPage";`,
 			`import { SignupPage } from "./routes/auth/SignupPage";`,
 			`import { DashboardPage } from "./routes/dashboard/DashboardPage";`,
@@ -336,6 +340,7 @@ ${homeContent}
 function App() {
 	return (
 		<BrowserRouter>
+			<Navbar />
 			<Routes>
 				<Route element={<AuthGuard />}>
 					<Route path="/" element={<Home />} />
@@ -1164,6 +1169,87 @@ export function DashboardPage() {
 				<p className="mt-2 text-gray-400">Welcome, {user?.name || user?.email}!</p>
 			</main>
 		</div>
+	);
+}
+`;
+}
+
+function generateNavbar(config: ProjectConfig): string {
+	return `import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/context/use-auth";
+import { signOut } from "@/lib/auth-functions";
+
+export function Navbar() {
+	const { user } = useAuth();
+	const location = useLocation();
+	const [scrolled, setScrolled] = useState(false);
+
+	useEffect(() => {
+		const handleScroll = () => setScrolled(window.scrollY > 20);
+		window.addEventListener("scroll", handleScroll);
+		return () => window.removeEventListener("scroll", handleScroll);
+	}, []);
+
+	// Hide on dashboard — it has its own header
+	if (location.pathname.startsWith("/dashboard")) return null;
+
+	const handleSignOut = async () => {
+		await signOut();
+		window.location.href = "/";
+	};
+
+	return (
+		<nav
+			className={\`fixed top-0 left-0 right-0 z-50 transition-all duration-300 \${
+				scrolled
+					? "bg-gray-950/80 backdrop-blur-lg border-b border-gray-800"
+					: "bg-transparent"
+			}\`}
+		>
+			<div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div className="flex h-16 items-center justify-between">
+					<Link to="/" className="font-semibold text-lg text-gray-50">
+						${config.name}
+					</Link>
+
+					<div className="flex items-center gap-4">
+						{user ? (
+							<>
+								<Link
+									to="/dashboard"
+									className="text-sm text-gray-300 hover:text-gray-50 transition-colors"
+								>
+									Dashboard
+								</Link>
+								<button
+									type="button"
+									onClick={handleSignOut}
+									className="text-sm px-3 py-1.5 border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-gray-50 transition"
+								>
+									Sign out
+								</button>
+							</>
+						) : (
+							<>
+								<Link
+									to="/auth/login"
+									className="text-sm text-gray-300 hover:text-gray-50 transition-colors"
+								>
+									Sign in
+								</Link>
+								<Link
+									to="/auth/signup"
+									className="text-sm px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+								>
+									Get started
+								</Link>
+							</>
+						)}
+					</div>
+				</div>
+			</div>
+		</nav>
 	);
 }
 `;
