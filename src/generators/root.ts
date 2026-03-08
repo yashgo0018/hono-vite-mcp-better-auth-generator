@@ -27,6 +27,9 @@ export function generateRootPackageJson(
 		// Icons & Charts
 		catalog["lucide-react"] = versions.get("lucide-react") || "^0.563.0";
 		catalog.recharts = versions.get("recharts") || "^3.7.0";
+
+		// shadcn/ui dependencies
+		catalog["@radix-ui/react-slot"] = versions.get("@radix-ui/react-slot") || "^1.2.4";
 	}
 
 	const packageJson = {
@@ -235,6 +238,7 @@ ${config.description}
 
 - **Package Manager**: ${config.packageManager === "bun" ? "Bun" : config.packageManager}
 ${config.includeBackend ? "- **Backend**: Cloudflare Workers + Hono" : ""}
+${config.includeMcp ? "- **MCP Server**: Model Context Protocol with OAuth authentication" : ""}
 ${
 	config.includeFrontend
 		? `- **Frontend**: Vite + React 19 + TailwindCSS v4
@@ -263,6 +267,7 @@ ${config.includeFrontend ? "│   └── web/              # Vite + React fro
 ├── packages/
 ${config.includeDatabase ? "│   ├── db/               # Drizzle ORM schema" : ""}
 │   └── utils/            # Shared utilities
+${config.includeMcpWebComponents ? "│   └── web-components/   # ChatGPT widgets" : ""}
 ├── package.json
 ├── tsconfig.base.json
 └── biome.json
@@ -323,6 +328,7 @@ ${config.includeAuth && config.includeDatabase ? `- \`${config.packageManager} r
 - \`${config.packageManager} run lint:fix\` - Fix linting issues
 - \`${config.packageManager} run format\` - Format code
 - \`${config.packageManager} run typecheck\` - Run TypeScript type checking
+${config.includeMcpWebComponents ? `- \`${config.packageManager} --cwd packages/web-components run build:all\` - Build MCP web components` : ""}
 ${
 	config.includeFrontend
 		? `
@@ -340,6 +346,65 @@ npx shadcn@latest add card
 Components will be added to \`apps/web/src/components/ui/\`.
 
 Learn more at [shadcn/ui](https://ui.shadcn.com)`
+		: ""
+}
+${
+	config.includeMcp
+		? `
+
+## MCP (Model Context Protocol) Server
+
+This project includes an MCP server at \`/mcp\` for AI assistant integration.
+
+${
+	config.includeMcpOAuth
+		? `### Authentication
+
+The MCP server uses OAuth 2.0 for authentication:
+
+1. Register an OAuth client through Better Auth
+2. Obtain an access token via the OAuth flow
+3. Connect to the MCP server with the Bearer token in the Authorization header
+
+\`\`\`bash
+# Example: Connect to MCP server
+Authorization: Bearer {access_token}
+\`\`\``
+		: ""
+}
+
+### Available Tools
+
+- \`get_user\` - Get current user information
+- \`list_records\` - List example records
+- \`create_record\` - Create a new record
+${
+	config.includeMcpOrganizations
+		? `- \`list_organizations\` - List user organizations
+- \`switch_organization\` - Change default organization`
+		: ""
+}
+
+Add your own tools in \`apps/backend/src/mcp/tools.ts\`
+
+### Resources
+
+- \`doc://app/getting-started\` - Getting started guide
+${config.includeMcpWebComponents ? "- `ui://widget/example.html` - Example interactive widget" : ""}
+
+${
+	config.includeMcpWebComponents
+		? `### Web Components (ChatGPT Integration)
+
+Build interactive widgets for ChatGPT:
+
+\`\`\`bash
+${config.packageManager} --cwd packages/web-components run build:all
+\`\`\`
+
+Widgets are exposed as MCP resources with \`ui://widget/\` URIs.`
+		: ""
+}`
 		: ""
 }
 

@@ -1,6 +1,7 @@
 import { join } from "path";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
+import { generateMcpBackend } from "./mcp";
 
 export function generateBackend(
 	projectPath: string,
@@ -29,6 +30,15 @@ export function generateBackend(
 		deps["better-auth"] = versions.get("better-auth") || "^1.3.12";
 		if (config.includeDatabase) {
 			deps["@better-auth/drizzle-adapter"] = versions.get("@better-auth/drizzle-adapter") || "^1.3.12";
+		}
+	}
+
+	if (config.includeMcp) {
+		deps["@hono/mcp"] = versions.get("@hono/mcp") || "^0.2.3";
+		deps["@modelcontextprotocol/sdk"] = versions.get("@modelcontextprotocol/sdk") || "^1.26.0";
+
+		if (config.includeMcpOAuth) {
+			deps["@better-auth/oauth-provider"] = versions.get("@better-auth/oauth-provider") || "^1.4.18";
 		}
 	}
 
@@ -96,6 +106,11 @@ export function generateBackend(
 	// .env.example
 	const envExample = generateBackendEnvExample(config);
 	writeFile(join(backendPath, ".env.example"), envExample);
+
+	// MCP integration
+	if (config.includeMcp) {
+		generateMcpBackend(projectPath, config, versions);
+	}
 }
 
 function generateBackendIndex(config: ProjectConfig): string {
@@ -107,6 +122,14 @@ function generateBackendIndex(config: ProjectConfig): string {
 
 	imports.push(`import type { Bindings } from "./env";`);
 	imports.push(`import { apiRoutes } from "./routes/api";`);
+
+	if (config.includeMcp) {
+		imports.push(`import { mcpRoutes } from "./routes/mcp";`);
+	}
+
+	if (config.includeMcpOAuth) {
+		imports.push(`import { oauthRoutes } from "./routes/oauth";`);
+	}
 
 	const contextSetup = config.includeDatabase
 		? `	.use(async (c, next) => {
@@ -136,7 +159,7 @@ const app = new Hono<CustomContext>()${contextSetup}
 			credentials: true,
 		}),
 	)
-	.route("/api", apiRoutes)
+	.route("/api", apiRoutes)${config.includeMcp ? `\n\t.route("/mcp", mcpRoutes)` : ""}${config.includeMcpOAuth ? `\n\t.route("/.well-known", oauthRoutes)` : ""}
 	.get("/", (c) => {
 		return c.json({ message: "Hello from ${config.name}!" });
 	});
@@ -209,15 +232,51 @@ export const apiRoutes = new Hono()
 }
 
 function generateAuthConfig(config: ProjectConfig): string {
+	const plugins = [];
+	const pluginImports = [];
+
+	if (config.includeMcpOrganizations) {
+		pluginImports.push(`import { organization } from "better-auth/plugins";`);
+		plugins.push(`organization()`);
+	}
+
+	if (config.includeMcpOAuth) {
+		pluginImports.push(`import { oauthProvider } from "@better-auth/oauth-provider";`);
+		plugins.push(`\n\t\toauthProvider({
+			allowDynamicClientRegistration: true,
+			allowUnauthenticatedClientRegistration: true,
+			loginPage: env.WEB_ORIGIN
+				? \`\${env.WEB_ORIGIN.replace(/\\/$/, "")}/auth/login\`
+				: "/auth/login",
+			consentPage: env.WEB_ORIGIN
+				? \`\${env.WEB_ORIGIN.replace(/\\/$/, "")}/consent\`
+				: "/consent",
+			validAudiences: (() => {
+				const audiences = [env.API_ORIGIN, env.WEB_ORIGIN];${
+					config.includeMcp
+						? `
+				const apiOrigin = env.API_ORIGIN.replace(/\\/$/, "");
+				audiences.push(\`\${apiOrigin}/mcp\`);`
+						: ""
+				}
+				return [...new Set(audiences)];
+			})(),
+			silenceWarnings: {
+				oauthAuthServerConfig: true,
+			},
+		})`);
+	}
+
 	return `import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
+${pluginImports.join("\n")}
 import { createDb, schema } from "@${config.name}/db";
 import type { Bindings } from "./env";
 
 export const createAuth = (env: Bindings) => {
 	const db = createDb(env.DATABASE_URL);
 
-	return betterAuth({
+	return betterAuth({${plugins.length > 0 ? `\n\t\tplugins: [${plugins.join(", ")}],` : ""}
 		database: drizzleAdapter(db, {
 			provider: "pg",
 			schema: {
@@ -232,27 +291,21 @@ export const createAuth = (env: Bindings) => {
 		trustedOrigins: [env.WEB_ORIGIN],
 	});
 };
+
+export const getAuth = (env: Bindings) => createAuth(env);
 `;
 }
 
 function generateAuthWithEnv(config: ProjectConfig): string {
-	return `import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { createDb } from "@${config.name}/db";
+	return `import { getAuth } from "./auth";
+import type { Bindings } from "./env";
 
 /**
  * Auth configuration for Better Auth CLI
  * This file is used by the Better Auth CLI to generate the database schema
  * Run: ${config.packageManager} run auth:generate
  */
-export const auth = betterAuth({
-	database: drizzleAdapter(createDb(process.env.DATABASE_URL || ""), {
-		provider: "pg",
-	}),
-	secret: process.env.BETTER_AUTH_SECRET || "dummy-secret-for-schema-generation",
-	baseURL: process.env.API_ORIGIN || "http://localhost:8787",
-	trustedOrigins: [process.env.WEB_ORIGIN || "http://localhost:5173"],
-});
+export const auth = getAuth(process.env as unknown as Bindings);
 `;
 }
 

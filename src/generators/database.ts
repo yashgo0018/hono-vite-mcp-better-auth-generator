@@ -79,6 +79,28 @@ export type Database = ReturnType<typeof createDb>;
 	writeFile(join(dbPath, "src/index.ts"), indexTs);
 
 	// src/schema.ts
+	const mcpSessionTable = config.includeMcp
+		? `
+// MCP Session table
+export const mcpSession = pgTable("mcp_session", {
+	id: uuid("id")
+		.default(sql\`pg_catalog.gen_random_uuid()\`)
+		.primaryKey(),
+	userId: uuid("user_id")
+		.notNull()${config.includeAuth ? `
+		.references(() => users.id, { onDelete: "cascade" })` : ""},
+${
+	config.includeMcpOrganizations
+		? `\tdefaultOrganizationId: uuid("default_organization_id")${config.includeAuth ? `
+		.references(() => organization.id, { onDelete: "cascade" })` : ""},`
+		: ""
+}
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+`
+		: "";
+
 	const schemaTs = config.includeAuth
 		? `import { pgTable, uuid, text, timestamp, boolean, numeric } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -89,10 +111,10 @@ export const example = pgTable("example", {
 		.default(sql\`pg_catalog.gen_random_uuid()\`)
 		.primaryKey(),
 	name: text("name").notNull(),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-	updatedAt: timestamp("updated_at").notNull().defaultNow(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
-
+${mcpSessionTable}
 // Export all tables
 export * from "./auth-schema";
 `
@@ -105,9 +127,10 @@ export const example = pgTable("example", {
 		.default(sql\`pg_catalog.gen_random_uuid()\`)
 		.primaryKey(),
 	name: text("name").notNull(),
-	createdAt: timestamp("created_at").notNull().defaultNow(),
-	updatedAt: timestamp("updated_at").notNull().defaultNow(),
+	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+${mcpSessionTable}
 `;
 
 	writeFile(join(dbPath, "src/schema.ts"), schemaTs);

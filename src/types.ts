@@ -11,6 +11,12 @@ export interface ProjectConfig {
 	includeR2: boolean;
 	includeObservability: boolean;
 	includeGithubActions: boolean;
+
+	// MCP Options
+	includeMcp: boolean;
+	includeMcpOrganizations: boolean; // Requires includeMcp && includeAuth && includeDatabase
+	includeMcpOAuth: boolean; // Requires includeMcp && includeAuth
+	includeMcpWebComponents: boolean; // Requires includeMcp && includeFrontend
 }
 
 export interface TemplateData {

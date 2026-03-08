@@ -14,6 +14,7 @@ import { generateBackend } from "./backend";
 import { generateFrontend } from "./frontend";
 import { generateGithubActions } from "./github-actions";
 import { generateScripts } from "./scripts";
+import { generateMcpWebComponents } from "./mcp";
 import { versionCache } from "../utils/npm-registry";
 
 export async function generateProject(projectPath: string, config: ProjectConfig) {
@@ -55,6 +56,11 @@ export async function generateProject(projectPath: string, config: ProjectConfig
 	// Generate GitHub Actions
 	if (config.includeGithubActions) {
 		generateGithubActions(projectPath, config);
+	}
+
+	// Generate MCP web components
+	if (config.includeMcpWebComponents) {
+		generateMcpWebComponents(projectPath, config, versions);
 	}
 
 	// Generate Scripts

@@ -55,6 +55,16 @@ const FALLBACK_VERSIONS: Record<string, string> = {
 	// shadcn/ui
 	"@radix-ui/react-slot": "^1.2.4",
 
+	// MCP
+	"@hono/mcp": "^0.2.3",
+	"@modelcontextprotocol/sdk": "^1.26.0",
+	"@better-auth/oauth-provider": "^1.4.18",
+
+	// Web Components
+	"@tanstack/react-table": "^8.21.3",
+	jose: "^6.1.0",
+	"tw-animate-css": "^1.4.0",
+
 	// Package Manager
 	bun: "1.2.18", // No ^ prefix for packageManager field
 };
@@ -207,6 +217,21 @@ export function collectRequiredPackages(config: ProjectConfig): string[] {
 		if (config.includeDatabase) {
 			packages.add("@better-auth/drizzle-adapter");
 		}
+	}
+
+	if (config.includeMcp) {
+		packages.add("@hono/mcp");
+		packages.add("@modelcontextprotocol/sdk");
+
+		if (config.includeMcpOAuth) {
+			packages.add("@better-auth/oauth-provider");
+		}
+	}
+
+	if (config.includeMcpWebComponents) {
+		packages.add("@tanstack/react-table");
+		packages.add("jose");
+		packages.add("tw-animate-css");
 	}
 
 	return Array.from(packages);

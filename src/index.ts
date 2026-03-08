@@ -20,6 +20,12 @@ interface ProjectConfig {
 	includeR2: boolean;
 	includeObservability: boolean;
 	includeGithubActions: boolean;
+
+	// MCP Options
+	includeMcp: boolean;
+	includeMcpOrganizations: boolean;
+	includeMcpOAuth: boolean;
+	includeMcpWebComponents: boolean;
 }
 
 async function main() {
@@ -231,6 +237,64 @@ async function main() {
 		process.exit(0);
 	}
 
+	const includeMcp = await confirm({
+		message: "Include MCP (Model Context Protocol) server?",
+		initialValue: false,
+	});
+
+	if (typeof includeMcp === "symbol") {
+		outro(chalk.red("Project creation cancelled"));
+		process.exit(0);
+	}
+
+	let includeMcpOrganizations = false;
+	let includeMcpOAuth = false;
+	let includeMcpWebComponents = false;
+
+	if (includeMcp) {
+		if (includeAuth && includeDatabase) {
+			const mcpOrgResponse = await confirm({
+				message: "Enable organization support for MCP?",
+				initialValue: true,
+			});
+
+			if (typeof mcpOrgResponse === "symbol") {
+				outro(chalk.red("Project creation cancelled"));
+				process.exit(0);
+			}
+
+			includeMcpOrganizations = mcpOrgResponse;
+		}
+
+		if (includeAuth) {
+			const mcpOAuthResponse = await confirm({
+				message: "Use OAuth for MCP authentication?",
+				initialValue: true,
+			});
+
+			if (typeof mcpOAuthResponse === "symbol") {
+				outro(chalk.red("Project creation cancelled"));
+				process.exit(0);
+			}
+
+			includeMcpOAuth = mcpOAuthResponse;
+		}
+
+		if (includeFrontend) {
+			const webComponentsResponse = await confirm({
+				message: "Include ChatGPT app SDK support (web components)?",
+				initialValue: true,
+			});
+
+			if (typeof webComponentsResponse === "symbol") {
+				outro(chalk.red("Project creation cancelled"));
+				process.exit(0);
+			}
+
+			includeMcpWebComponents = webComponentsResponse;
+		}
+	}
+
 	const config: ProjectConfig = {
 		name: projectName,
 		description: typeof description === "string" ? description : "",
@@ -244,6 +308,10 @@ async function main() {
 		includeR2,
 		includeObservability,
 		includeGithubActions,
+		includeMcp,
+		includeMcpOrganizations,
+		includeMcpOAuth,
+		includeMcpWebComponents,
 	};
 
 	const s = spinner();
