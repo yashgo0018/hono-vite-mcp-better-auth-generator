@@ -215,8 +215,8 @@ function generateBackendEnv(config: ProjectConfig): string {
 	if (config.includeAuth) {
 		fields.push(
 			`	BETTER_AUTH_SECRET: z.string().min(1)`,
-			`	API_ORIGIN: z.string().url()`,
-			`	WEB_ORIGIN: z.string().url()`,
+			`	API_ORIGIN: z.url()`,
+			`	WEB_ORIGIN: z.url()`,
 		);
 	}
 
@@ -324,15 +324,7 @@ export const createAuth = (env: Bindings) => {
 	const db = createDb(env.DATABASE_URL);
 
 	return betterAuth({${plugins.length > 0 ? `\n\t\tplugins: [${plugins.join(", ")}],` : ""}
-		database: drizzleAdapter(db, {
-			provider: "pg",
-			schema: {
-				user: schema.users,
-				session: schema.session,
-				account: schema.account,
-				verification: schema.verification,
-			},
-		}),
+		database: drizzleAdapter(db, { provider: "pg" }),
 		secret: env.BETTER_AUTH_SECRET,
 		baseURL: env.API_ORIGIN,
 		trustedOrigins: [env.WEB_ORIGIN],

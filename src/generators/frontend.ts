@@ -262,9 +262,8 @@ function generateAppTsx(config: ProjectConfig): string {
 					>
 						React Docs
 					</a>
-					${
-						config.includeBackend
-							? `
+					${config.includeBackend
+			? `
 					<a
 						href="https://hono.dev"
 						target="_blank"
@@ -273,8 +272,8 @@ function generateAppTsx(config: ProjectConfig): string {
 					>
 						Hono Docs
 					</a>`
-							: ""
-					}
+			: ""
+		}
 				</div>
 			</div>
 		</div>`;
@@ -346,7 +345,7 @@ function generateFrontendEnv(config: ProjectConfig): string {
 
 	if (config.includeBackend) {
 		fields.push(
-			`	VITE_API_ORIGIN: z.string().url().default("http://localhost:8787")`,
+			`	VITE_API_ORIGIN: z.url().default("http://localhost:8787")`,
 		);
 	}
 
