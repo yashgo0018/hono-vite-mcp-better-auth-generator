@@ -1,5 +1,5 @@
 export function generateMcpUtils(): string {
-	return `import type { HeaderRecord, ToolResult } from "./types";
+  return `import type { HeaderRecord, ToolResult } from "./types";
 import { SESSION_HEADER } from "./types";
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>

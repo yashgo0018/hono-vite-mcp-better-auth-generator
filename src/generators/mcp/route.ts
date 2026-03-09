@@ -1,23 +1,23 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateMcpRoute(config: ProjectConfig): string {
-	const hasOAuth = config.includeMcpOAuth;
-	const hasDB = config.includeDatabase;
-	const hasOrgs = config.includeOrganizations;
+  const hasOAuth = config.includeMcpOAuth;
+  const hasDB = config.includeDatabase;
+  const hasOrgs = config.includeOrganizations;
 
-	const oauthImports = hasOAuth
-		? `import { verifyOAuthAccessToken, getSessionCookieForMcpBearer } from "../mcp/auth";`
-		: "";
+  const oauthImports = hasOAuth
+    ? `import { verifyOAuthAccessToken, getSessionCookieForMcpBearer } from "../mcp/auth";`
+    : "";
 
-	const dbImports = hasDB
-		? `import { createDb, schema } from "@${config.name}/db";
+  const dbImports = hasDB
+    ? `import { createDb, schema } from "@${config.name}/db";
 import { eq } from "drizzle-orm";
 import { resolveDatabaseUrl } from "../lib/db-url";`
-		: "";
+    : "";
 
-	// Auth block at start of route handler
-	const authBlock = hasOAuth
-		? `	const base = c.env.API_ORIGIN;
+  // Auth block at start of route handler
+  const authBlock = hasOAuth
+    ? `	const base = c.env.API_ORIGIN;
 	const resourceMetadataUrl = \`\${base}/.well-known/oauth-protected-resource\`;
 	const bearerToken = c.req.header("Authorization")?.replace(/^Bearer /, "").trim();
 
@@ -35,13 +35,13 @@ import { resolveDatabaseUrl } from "../lib/db-url";`
 		c.header("Access-Control-Expose-Headers", "WWW-Authenticate");
 		return c.json({ error: "Unauthorized" }, 401);
 	}`
-		: `	// No OAuth - bearer token is used as userId for development
+    : `	// No OAuth - bearer token is used as userId for development
 	const bearerToken = c.req.header("Authorization")?.replace(/^Bearer /, "").trim();
 	const verified = { userId: bearerToken ?? "anonymous" };`;
 
-	// Inside CallTool handler: fetch session, get cookie, build client
-	const callToolSessionFetch = hasDB
-		? `		const db = createDb(resolveDatabaseUrl(env));
+  // Inside CallTool handler: fetch session, get cookie, build client
+  const callToolSessionFetch = hasDB
+    ? `		const db = createDb(resolveDatabaseUrl(env));
 		const [row] = await db
 			.select()
 			.from(schema.mcpSession)
@@ -58,15 +58,15 @@ import { resolveDatabaseUrl } from "../lib/db-url";`
 		const session: SessionInfo = {
 			userId: row.userId,${hasOrgs ? "\n\t\t\torganizationId: row.defaultOrganizationId ?? undefined," : ""}
 		};`
-		: `		const entry = sessionToServer.get(sessionId);
+    : `		const entry = sessionToServer.get(sessionId);
 		if (!entry) {
 			return { content: [{ type: "text", text: "Invalid or expired session." }], isError: true };
 		}
 
 		const session: SessionInfo = { userId: entry.userId };`;
 
-	const callToolCookieBlock = hasOAuth
-		? `
+  const callToolCookieBlock = hasOAuth
+    ? `
 		const effectiveHeaders: HeaderRecord = { ...requestHeaders };
 		if (!getHeader(effectiveHeaders, "cookie")) {
 			const bearer = getBearerToken(effectiveHeaders);
@@ -83,38 +83,37 @@ import { resolveDatabaseUrl } from "../lib/db-url";`
 		const clientHeaders: Record<string, string> = {};
 		if (effectiveHeaders.cookie) clientHeaders.cookie = effectiveHeaders.cookie as string;
 		if (effectiveHeaders.authorization) clientHeaders.authorization = effectiveHeaders.authorization as string;`
-		: `
+    : `
 
 		const clientHeaders: Record<string, string> = {};
 		const bearer = getBearerToken(requestHeaders);
 		if (bearer) clientHeaders.authorization = \`Bearer \${bearer}\`;`;
 
-	const orgPersist = hasDB && hasOrgs
-		? `
+  const orgPersist =
+    hasDB && hasOrgs
+      ? `
 		if (session.organizationId) {
 			await db.update(schema.mcpSession)
 				.set({ defaultOrganizationId: session.organizationId })
 				.where(eq(schema.mcpSession.id, sessionId));
 		}`
-		: "";
+      : "";
 
-	const persistSession = hasDB
-		? `
+  const persistSession = hasDB
+    ? `
 		const db = createDb(resolveDatabaseUrl(c.env));
 		await db.insert(schema.mcpSession).values({ id: sessionId, userId: verified.userId });`
-		: "";
+    : "";
 
-	const deleteDbRow = hasDB
-		? `
+  const deleteDbRow = hasDB
+    ? `
 		const db = createDb(resolveDatabaseUrl(c.env));
 		await db.delete(schema.mcpSession).where(eq(schema.mcpSession.id, sessionId));`
-		: "";
+    : "";
 
-	const cleanupCall = hasDB
-		? "await cleanupExpiredSessions(env);"
-		: "cleanupExpiredSessions();";
+  const cleanupCall = hasDB ? "await cleanupExpiredSessions(env);" : "cleanupExpiredSessions();";
 
-	return `import {
+  return `import {
 	CallToolRequestSchema,
 	ErrorCode,
 	ListResourcesRequestSchema,

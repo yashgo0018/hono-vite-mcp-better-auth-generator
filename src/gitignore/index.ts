@@ -5,4 +5,11 @@ import databaseGitignore from "./database.gitignore" with { type: "text" };
 import utilsGitignore from "./utils.gitignore" with { type: "text" };
 import webComponentsGitignore from "./web-components.gitignore" with { type: "text" };
 
-export { rootGitignore, backendGitignore, frontendGitignore, databaseGitignore, utilsGitignore, webComponentsGitignore };
+export {
+  rootGitignore,
+  backendGitignore,
+  frontendGitignore,
+  databaseGitignore,
+  utilsGitignore,
+  webComponentsGitignore,
+};

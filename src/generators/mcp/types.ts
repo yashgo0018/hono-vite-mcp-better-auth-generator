@@ -1,7 +1,7 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateMcpTypes(config: ProjectConfig): string {
-	return `export type JsonRecord = Record<string, unknown>;
+  return `export type JsonRecord = Record<string, unknown>;
 
 export type HeaderRecord = Record<string, string | string[] | undefined>;
 

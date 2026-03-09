@@ -1,7 +1,7 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateAuthContext(): string {
-	return `import type { Session } from "better-auth";
+  return `import type { Session } from "better-auth";
 import { createContext } from "react";
 
 export type AuthUser = {
@@ -22,7 +22,7 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 }
 
 export function generateAuthProvider(): string {
-	return `import type { Session } from "better-auth";
+  return `import type { Session } from "better-auth";
 import { useEffect, useState } from "react";
 import { authClient } from "@/auth";
 import { AuthContext, type AuthUser } from "@/context/auth-context";
@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function generateUseAuth(): string {
-	return `import { useContext } from "react";
+  return `import { useContext } from "react";
 import { AuthContext } from "@/context/auth-context";
 
 export function useAuth() {
@@ -84,7 +84,7 @@ export function useAuth() {
 }
 
 export function generateAuthGuard(): string {
-	return `import { useEffect } from "react";
+  return `import { useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/use-auth";
 
@@ -133,36 +133,36 @@ export function AuthGuard() {
 }
 
 export function generateAuthFunctions(config: ProjectConfig): string {
-	const lines = [
-		`import { authClient } from "@/auth";`,
-		``,
-		`export const signIn = (email: string, password: string) =>`,
-		`\tauthClient.signIn.email({ email, password });`,
-		``,
-		`export const signUp = (email: string, password: string, name = "") =>`,
-		`\tauthClient.signUp.email({ email, password, name });`,
-		``,
-		`export const signOut = () => authClient.signOut();`,
-	];
+  const lines = [
+    `import { authClient } from "@/auth";`,
+    ``,
+    `export const signIn = (email: string, password: string) =>`,
+    `\tauthClient.signIn.email({ email, password });`,
+    ``,
+    `export const signUp = (email: string, password: string, name = "") =>`,
+    `\tauthClient.signUp.email({ email, password, name });`,
+    ``,
+    `export const signOut = () => authClient.signOut();`,
+  ];
 
-	if (config.includeGoogleAuth) {
-		lines.push(
-			``,
-			`export const signInWithGoogle = () =>`,
-			`\tauthClient.signIn.social({`,
-			`\t\tprovider: "google",`,
-			`\t\tcallbackURL: \`\${window.location.origin}/dashboard\`,`,
-			`\t\terrorCallbackURL: \`\${window.location.origin}/auth/login\`,`,
-			`\t});`,
-		);
-	}
+  if (config.includeGoogleAuth) {
+    lines.push(
+      ``,
+      `export const signInWithGoogle = () =>`,
+      `\tauthClient.signIn.social({`,
+      `\t\tprovider: "google",`,
+      `\t\tcallbackURL: \`\${window.location.origin}/dashboard\`,`,
+      `\t\terrorCallbackURL: \`\${window.location.origin}/auth/login\`,`,
+      `\t});`,
+    );
+  }
 
-	return lines.join("\n") + "\n";
+  return lines.join("\n") + "\n";
 }
 
 export function generateLoginPage(config: ProjectConfig): string {
-	const googleButton = config.includeGoogleAuth
-		? `
+  const googleButton = config.includeGoogleAuth
+    ? `
 			<button
 				type="button"
 				onClick={handleGoogleSignIn}
@@ -191,18 +191,18 @@ export function generateLoginPage(config: ProjectConfig): string {
 					<span className="bg-gray-900 px-2 text-gray-500">Or continue with email</span>
 				</div>
 			</div>`
-		: "";
+    : "";
 
-	const googleState = config.includeGoogleAuth
-		? `\n\tconst [googleLoading, setGoogleLoading] = useState(false);`
-		: "";
+  const googleState = config.includeGoogleAuth
+    ? `\n\tconst [googleLoading, setGoogleLoading] = useState(false);`
+    : "";
 
-	const googleImport = config.includeGoogleAuth
-		? `import { signIn, signInWithGoogle } from "@/lib/auth-functions";`
-		: `import { signIn } from "@/lib/auth-functions";`;
+  const googleImport = config.includeGoogleAuth
+    ? `import { signIn, signInWithGoogle } from "@/lib/auth-functions";`
+    : `import { signIn } from "@/lib/auth-functions";`;
 
-	const googleHandler = config.includeGoogleAuth
-		? `
+  const googleHandler = config.includeGoogleAuth
+    ? `
 	const handleGoogleSignIn = async () => {
 		setGoogleLoading(true);
 		setError(null);
@@ -217,13 +217,13 @@ export function generateLoginPage(config: ProjectConfig): string {
 			setGoogleLoading(false);
 		}
 	};`
-		: "";
+    : "";
 
-	const disabledAttr = config.includeGoogleAuth
-		? "disabled={loading || googleLoading}"
-		: "disabled={loading}";
+  const disabledAttr = config.includeGoogleAuth
+    ? "disabled={loading || googleLoading}"
+    : "disabled={loading}";
 
-	return `import { useState } from "react";
+  return `import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 ${googleImport}
 
@@ -328,8 +328,8 @@ ${googleHandler}
 }
 
 export function generateSignupPage(config: ProjectConfig): string {
-	const googleButton = config.includeGoogleAuth
-		? `
+  const googleButton = config.includeGoogleAuth
+    ? `
 			<button
 				type="button"
 				onClick={handleGoogleSignIn}
@@ -358,18 +358,18 @@ export function generateSignupPage(config: ProjectConfig): string {
 					<span className="bg-gray-900 px-2 text-gray-500">Or continue with email</span>
 				</div>
 			</div>`
-		: "";
+    : "";
 
-	const googleState = config.includeGoogleAuth
-		? `\n\tconst [googleLoading, setGoogleLoading] = useState(false);`
-		: "";
+  const googleState = config.includeGoogleAuth
+    ? `\n\tconst [googleLoading, setGoogleLoading] = useState(false);`
+    : "";
 
-	const googleImport = config.includeGoogleAuth
-		? `import { signUp, signInWithGoogle } from "@/lib/auth-functions";`
-		: `import { signUp } from "@/lib/auth-functions";`;
+  const googleImport = config.includeGoogleAuth
+    ? `import { signUp, signInWithGoogle } from "@/lib/auth-functions";`
+    : `import { signUp } from "@/lib/auth-functions";`;
 
-	const googleHandler = config.includeGoogleAuth
-		? `
+  const googleHandler = config.includeGoogleAuth
+    ? `
 	const handleGoogleSignIn = async () => {
 		setGoogleLoading(true);
 		setError(null);
@@ -384,13 +384,13 @@ export function generateSignupPage(config: ProjectConfig): string {
 			setGoogleLoading(false);
 		}
 	};`
-		: "";
+    : "";
 
-	const disabledAttr = config.includeGoogleAuth
-		? "disabled={loading || googleLoading}"
-		: "disabled={loading}";
+  const disabledAttr = config.includeGoogleAuth
+    ? "disabled={loading || googleLoading}"
+    : "disabled={loading}";
 
-	return `import { useState } from "react";
+  return `import { useState } from "react";
 import { Link } from "react-router-dom";
 ${googleImport}
 
@@ -523,7 +523,7 @@ ${googleHandler}
 }
 
 export function generateDashboardPage(config: ProjectConfig): string {
-	return `import { useAuth } from "@/context/use-auth";
+  return `import { useAuth } from "@/context/use-auth";
 import { signOut } from "@/lib/auth-functions";
 import { useNavigate } from "react-router-dom";
 
@@ -563,7 +563,7 @@ export function DashboardPage() {
 }
 
 export function generateNavbar(config: ProjectConfig): string {
-	return `import { useEffect, useState } from "react";
+  return `import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/use-auth";
 import { signOut } from "@/lib/auth-functions";

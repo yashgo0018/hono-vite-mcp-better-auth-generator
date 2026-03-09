@@ -4,81 +4,81 @@ import { createDirectory, writeFile } from "../../utils/file-utils";
 import { webComponentsGitignore } from "../../gitignore";
 
 export function generateMcpWebComponents(
-	projectPath: string,
-	config: ProjectConfig,
-	versions: Map<string, string>,
+  projectPath: string,
+  config: ProjectConfig,
+  versions: Map<string, string>,
 ) {
-	if (!config.includeMcpWebComponents) return;
+  if (!config.includeMcpWebComponents) return;
 
-	const webComponentsPath = join(projectPath, "packages/web-components");
-	createDirectory(webComponentsPath);
-	writeFile(join(webComponentsPath, ".gitignore"), webComponentsGitignore);
-	createDirectory(join(webComponentsPath, "src"));
-	createDirectory(join(webComponentsPath, "src/components"));
-	createDirectory(join(webComponentsPath, "src/utils"));
-	createDirectory(join(webComponentsPath, "src/types"));
+  const webComponentsPath = join(projectPath, "packages/web-components");
+  createDirectory(webComponentsPath);
+  writeFile(join(webComponentsPath, ".gitignore"), webComponentsGitignore);
+  createDirectory(join(webComponentsPath, "src"));
+  createDirectory(join(webComponentsPath, "src/components"));
+  createDirectory(join(webComponentsPath, "src/utils"));
+  createDirectory(join(webComponentsPath, "src/types"));
 
-	// package.json
-	const packageJson = {
-		name: `@${config.name}/web-components`,
-		private: true,
-		type: "module",
-		main: "dist/index.ts",
-		scripts: {
-			dev: "vite",
-			"build:example":
-				"WIDGET_NAME=example-widget WIDGET_ENTRY=src/example-widget-entry.tsx vite build",
-			"build:all": `${config.packageManager} run build:example`,
-			preview: "vite preview",
-			serve: "vite preview --port 4444 --strictPort",
-		},
-		dependencies: {
-			"@radix-ui/react-slot": "catalog:",
-			"@tailwindcss/vite": "catalog:",
-			"@tanstack/react-table": versions.get("@tanstack/react-table") || "^8.21.3",
-			"class-variance-authority": versions.get("class-variance-authority") || "^0.7.1",
-			clsx: versions.get("clsx") || "^2.1.1",
-			jose: versions.get("jose") || "^6.1.0",
-			"lucide-react": "catalog:",
-			react: "catalog:",
-			"react-dom": "catalog:",
-			recharts: "catalog:",
-			"tailwind-merge": versions.get("tailwind-merge") || "^3.4.0",
-			tailwindcss: "catalog:",
-		},
-		devDependencies: {
-			"@types/react": "catalog:",
-			"@types/react-dom": "catalog:",
-			"@vitejs/plugin-react": "catalog:",
-			"tw-animate-css": versions.get("tw-animate-css") || "^1.4.0",
-			typescript: "catalog:",
-			vite: "catalog:",
-		},
-		exports: {
-			".": {
-				types: "./dist/index.ts",
-				import: "./dist/index.ts",
-			},
-		},
-	};
+  // package.json
+  const packageJson = {
+    name: `@${config.name}/web-components`,
+    private: true,
+    type: "module",
+    main: "dist/index.ts",
+    scripts: {
+      dev: "vite",
+      "build:example":
+        "WIDGET_NAME=example-widget WIDGET_ENTRY=src/example-widget-entry.tsx vite build",
+      "build:all": `${config.packageManager} run build:example`,
+      preview: "vite preview",
+      serve: "vite preview --port 4444 --strictPort",
+    },
+    dependencies: {
+      "@radix-ui/react-slot": "catalog:",
+      "@tailwindcss/vite": "catalog:",
+      "@tanstack/react-table": versions.get("@tanstack/react-table") || "^8.21.3",
+      "class-variance-authority": versions.get("class-variance-authority") || "^0.7.1",
+      clsx: versions.get("clsx") || "^2.1.1",
+      jose: versions.get("jose") || "^6.1.0",
+      "lucide-react": "catalog:",
+      react: "catalog:",
+      "react-dom": "catalog:",
+      recharts: "catalog:",
+      "tailwind-merge": versions.get("tailwind-merge") || "^3.4.0",
+      tailwindcss: "catalog:",
+    },
+    devDependencies: {
+      "@types/react": "catalog:",
+      "@types/react-dom": "catalog:",
+      "@vitejs/plugin-react": "catalog:",
+      "tw-animate-css": versions.get("tw-animate-css") || "^1.4.0",
+      typescript: "catalog:",
+      vite: "catalog:",
+    },
+    exports: {
+      ".": {
+        types: "./dist/index.ts",
+        import: "./dist/index.ts",
+      },
+    },
+  };
 
-	writeFile(join(webComponentsPath, "package.json"), JSON.stringify(packageJson, null, 2));
+  writeFile(join(webComponentsPath, "package.json"), JSON.stringify(packageJson, null, 2));
 
-	// tsconfig.json
-	const tsConfig = {
-		extends: "../../tsconfig.base.json",
-		include: ["src"],
-		compilerOptions: {
-			paths: {
-				"@/*": ["./src/*"],
-			},
-		},
-	};
+  // tsconfig.json
+  const tsConfig = {
+    extends: "../../tsconfig.base.json",
+    include: ["src"],
+    compilerOptions: {
+      paths: {
+        "@/*": ["./src/*"],
+      },
+    },
+  };
 
-	writeFile(join(webComponentsPath, "tsconfig.json"), JSON.stringify(tsConfig, null, 2));
+  writeFile(join(webComponentsPath, "tsconfig.json"), JSON.stringify(tsConfig, null, 2));
 
-	// vite.config.ts
-	const viteConfig = `import { defineConfig } from "vite";
+  // vite.config.ts
+  const viteConfig = `import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -101,10 +101,10 @@ export default defineConfig({
 });
 `;
 
-	writeFile(join(webComponentsPath, "vite.config.ts"), viteConfig);
+  writeFile(join(webComponentsPath, "vite.config.ts"), viteConfig);
 
-	// index.html
-	const indexHtml = `<!DOCTYPE html>
+  // index.html
+  const indexHtml = `<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -118,11 +118,11 @@ export default defineConfig({
 </html>
 `;
 
-	writeFile(join(webComponentsPath, "index.html"), indexHtml);
+  writeFile(join(webComponentsPath, "index.html"), indexHtml);
 
-	// .env.example
-	const envExample = config.includeMcpOAuth
-		? `# MCP Server Configuration
+  // .env.example
+  const envExample = config.includeMcpOAuth
+    ? `# MCP Server Configuration
 VITE_APP_URL=http://localhost:5173
 VITE_MCP_SERVER_URL=http://localhost:8787/mcp
 
@@ -136,7 +136,7 @@ VITE_JWT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\nYOUR_PRIVATE_KEY_HERE\\n----
 # User ID for testing (create a user first)
 VITE_USER_ID=YOUR_USER_ID_HERE
 `
-		: `# MCP Server Configuration
+    : `# MCP Server Configuration
 VITE_APP_URL=http://localhost:5173
 VITE_MCP_SERVER_URL=http://localhost:8787/mcp
 
@@ -144,22 +144,22 @@ VITE_MCP_SERVER_URL=http://localhost:8787/mcp
 VITE_USER_ID=YOUR_USER_ID_HERE
 `;
 
-	writeFile(join(webComponentsPath, ".env.example"), envExample);
+  writeFile(join(webComponentsPath, ".env.example"), envExample);
 
-	// src/types/openai.ts
-	const openaiTypes = generateOpenAiTypes();
-	writeFile(join(webComponentsPath, "src/types/openai.ts"), openaiTypes);
+  // src/types/openai.ts
+  const openaiTypes = generateOpenAiTypes();
+  writeFile(join(webComponentsPath, "src/types/openai.ts"), openaiTypes);
 
-	// src/utils/sse.ts
-	const sseUtils = generateSseUtils();
-	writeFile(join(webComponentsPath, "src/utils/sse.ts"), sseUtils);
+  // src/utils/sse.ts
+  const sseUtils = generateSseUtils();
+  writeFile(join(webComponentsPath, "src/utils/sse.ts"), sseUtils);
 
-	// src/dev-preview.tsx
-	const devPreview = generateDevPreview(config);
-	writeFile(join(webComponentsPath, "src/dev-preview.tsx"), devPreview);
+  // src/dev-preview.tsx
+  const devPreview = generateDevPreview(config);
+  writeFile(join(webComponentsPath, "src/dev-preview.tsx"), devPreview);
 
-	// src/example-widget-entry.tsx
-	const exampleWidgetEntry = `import React from "react";
+  // src/example-widget-entry.tsx
+  const exampleWidgetEntry = `import React from "react";
 import ReactDOM from "react-dom/client";
 import ExampleWidget from "./components/ExampleWidget";
 
@@ -170,10 +170,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 `;
 
-	writeFile(join(webComponentsPath, "src/example-widget-entry.tsx"), exampleWidgetEntry);
+  writeFile(join(webComponentsPath, "src/example-widget-entry.tsx"), exampleWidgetEntry);
 
-	// src/components/ExampleWidget.tsx
-	const exampleWidget = `import { useState } from "react";
+  // src/components/ExampleWidget.tsx
+  const exampleWidget = `import { useState } from "react";
 
 export default function ExampleWidget() {
 	const [count, setCount] = useState(0);
@@ -203,11 +203,11 @@ export default function ExampleWidget() {
 }
 `;
 
-	writeFile(join(webComponentsPath, "src/components/ExampleWidget.tsx"), exampleWidget);
+  writeFile(join(webComponentsPath, "src/components/ExampleWidget.tsx"), exampleWidget);
 }
 
 function generateOpenAiTypes(): string {
-	return `export type DisplayMode = "pip" | "inline" | "fullscreen";
+  return `export type DisplayMode = "pip" | "inline" | "fullscreen";
 
 export type Theme = "light" | "dark";
 
@@ -262,7 +262,7 @@ export {};
 }
 
 function generateSseUtils(): string {
-	return `/**
+  return `/**
  * Parse Server-Sent Events response and extract JSON data
  */
 export async function parseSSEResponse<T = unknown>(response: Response): Promise<T> {
@@ -283,14 +283,14 @@ export async function parseSSEResponse<T = unknown>(response: Response): Promise
 }
 
 function generateDevPreview(config: ProjectConfig): string {
-	const hasOAuth = config.includeMcpOAuth;
-	const hasOrganizations = config.includeOrganizations;
+  const hasOAuth = config.includeMcpOAuth;
+  const hasOrganizations = config.includeOrganizations;
 
-	const jwtImport = hasOAuth ? `import * as jose from "jose";` : "";
-	const sessionIdHeader = `const SESSION_ID_HEADER = "mcp-session-id";`;
+  const jwtImport = hasOAuth ? `import * as jose from "jose";` : "";
+  const sessionIdHeader = `const SESSION_ID_HEADER = "mcp-session-id";`;
 
-	const jwtSigningCode = hasOAuth
-		? `
+  const jwtSigningCode = hasOAuth
+    ? `
 	// Generate JWT access token for OAuth
 	const privateKey = await jose.importPKCS8(import.meta.env.VITE_JWT_PRIVATE_KEY, "RS256");
 	const token = await new jose.SignJWT({ sub: userId })
@@ -302,17 +302,17 @@ function generateDevPreview(config: ProjectConfig): string {
 		.sign(privateKey);
 
 	return token;`
-		: `
+    : `
 	// Simple bearer token (no OAuth)
 	return "dev-token-" + userId;`;
 
-	const organizationFields = hasOrganizations
-		? `
+  const organizationFields = hasOrganizations
+    ? `
 	const [organizationId, setOrganizationId] = useState("");`
-		: "";
+    : "";
 
-	const organizationFormFields = hasOrganizations
-		? `
+  const organizationFormFields = hasOrganizations
+    ? `
 				<div>
 					<label className="block text-sm font-medium text-gray-300 mb-2">
 						Organization ID (optional)
@@ -325,9 +325,9 @@ function generateDevPreview(config: ProjectConfig): string {
 						className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
 				</div>`
-		: "";
+    : "";
 
-	return `import React, { useEffect, useState } from "react";
+  return `import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 ${jwtImport}
 import { parseSSEResponse } from "./utils/sse";

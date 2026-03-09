@@ -4,45 +4,45 @@ import { createDirectory, writeFile } from "../utils/file-utils";
 import { databaseGitignore } from "../gitignore";
 
 export function generateDatabasePackage(
-	projectPath: string,
-	config: ProjectConfig,
-	versions: Map<string, string>,
+  projectPath: string,
+  config: ProjectConfig,
+  versions: Map<string, string>,
 ) {
-	const dbPath = join(projectPath, "packages/db");
-	createDirectory(dbPath);
-	createDirectory(join(dbPath, "src"));
-	createDirectory(join(dbPath, "drizzle"));
+  const dbPath = join(projectPath, "packages/db");
+  createDirectory(dbPath);
+  createDirectory(join(dbPath, "src"));
+  createDirectory(join(dbPath, "drizzle"));
 
-	// package.json
-	const packageJson = {
-		name: `@${config.name}/db`,
-		type: "module",
-		main: "src/index.ts",
-		exports: {
-			".": "./src/index.ts",
-		},
-		dependencies: {
-			[`@${config.name}/utils`]: "workspace:*",
-			"drizzle-orm": versions.get("drizzle-orm") || "^0.45.1",
-			postgres: versions.get("postgres") || "^3.4.7",
-		},
-		devDependencies: {
-			"drizzle-kit": versions.get("drizzle-kit") || "^0.31.8",
-		},
-	};
+  // package.json
+  const packageJson = {
+    name: `@${config.name}/db`,
+    type: "module",
+    main: "src/index.ts",
+    exports: {
+      ".": "./src/index.ts",
+    },
+    dependencies: {
+      [`@${config.name}/utils`]: "workspace:*",
+      "drizzle-orm": versions.get("drizzle-orm") || "^0.45.1",
+      postgres: versions.get("postgres") || "^3.4.7",
+    },
+    devDependencies: {
+      "drizzle-kit": versions.get("drizzle-kit") || "^0.31.8",
+    },
+  };
 
-	writeFile(join(dbPath, "package.json"), JSON.stringify(packageJson, null, 2));
+  writeFile(join(dbPath, "package.json"), JSON.stringify(packageJson, null, 2));
 
-	// tsconfig.json
-	const tsConfig = {
-		extends: "../../tsconfig.base.json",
-		include: ["src"],
-	};
+  // tsconfig.json
+  const tsConfig = {
+    extends: "../../tsconfig.base.json",
+    include: ["src"],
+  };
 
-	writeFile(join(dbPath, "tsconfig.json"), JSON.stringify(tsConfig, null, 2));
+  writeFile(join(dbPath, "tsconfig.json"), JSON.stringify(tsConfig, null, 2));
 
-	// drizzle.config.ts
-	const drizzleConfig = `import { defineConfig } from "drizzle-kit";
+  // drizzle.config.ts
+  const drizzleConfig = `import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
 	schema: "./src/schema.ts",
@@ -57,10 +57,10 @@ export default defineConfig({
 });
 `;
 
-	writeFile(join(dbPath, "drizzle.config.ts"), drizzleConfig);
+  writeFile(join(dbPath, "drizzle.config.ts"), drizzleConfig);
 
-	// src/index.ts
-	const indexTs = `import { drizzle } from "drizzle-orm/postgres-js";
+  // src/index.ts
+  const indexTs = `import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
@@ -77,43 +77,53 @@ export { schema };
 export type Database = ReturnType<typeof createDb>;
 `;
 
-	writeFile(join(dbPath, "src/index.ts"), indexTs);
+  writeFile(join(dbPath, "src/index.ts"), indexTs);
 
-	// src/schema.ts
-	const needsAuthSchemaImports = config.includeMcp && config.includeAuth;
-	const authSchemaImports: string[] = [];
-	if (needsAuthSchemaImports) {
-		authSchemaImports.push("user");
-		if (config.includeOrganizations) authSchemaImports.push("organization");
-	}
+  // src/schema.ts
+  const needsAuthSchemaImports = config.includeMcp && config.includeAuth;
+  const authSchemaImports: string[] = [];
+  if (needsAuthSchemaImports) {
+    authSchemaImports.push("user");
+    if (config.includeOrganizations) authSchemaImports.push("organization");
+  }
 
-	const mcpSessionTable = config.includeMcp
-		? `
+  const mcpSessionTable = config.includeMcp
+    ? `
 // MCP Session table
 export const mcpSession = pgTable("mcp_session", {
 	id: uuid("id")
 		.default(sql\`pg_catalog.gen_random_uuid()\`)
 		.primaryKey(),
 	userId: text("user_id")
-		.notNull()${config.includeAuth ? `
-		.references(() => user.id, { onDelete: "cascade" })` : ""},
-${config.includeOrganizations
-			? `\tdefaultOrganizationId: text("default_organization_id")${config.includeAuth ? `
-		.references(() => organization.id, { onDelete: "cascade" })` : ""},`
-			: ""
-		}
+		.notNull()${
+      config.includeAuth
+        ? `
+		.references(() => user.id, { onDelete: "cascade" })`
+        : ""
+    },
+${
+  config.includeOrganizations
+    ? `\tdefaultOrganizationId: text("default_organization_id")${
+        config.includeAuth
+          ? `
+		.references(() => organization.id, { onDelete: "cascade" })`
+          : ""
+      },`
+    : ""
+}
 	createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 `
-		: "";
+    : "";
 
-	const authSchemaImportLine = authSchemaImports.length > 0
-		? `import { ${authSchemaImports.join(", ")} } from "./auth-schema";\n`
-		: "";
+  const authSchemaImportLine =
+    authSchemaImports.length > 0
+      ? `import { ${authSchemaImports.join(", ")} } from "./auth-schema";\n`
+      : "";
 
-	const schemaTs = config.includeAuth
-		? `import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
+  const schemaTs = config.includeAuth
+    ? `import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 ${authSchemaImportLine}
 // Example table
@@ -129,7 +139,7 @@ ${mcpSessionTable}
 // Export all tables
 export * from "./auth-schema";
 `
-		: `import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
+    : `import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // Example table
@@ -144,23 +154,23 @@ export const example = pgTable("example", {
 ${mcpSessionTable}
 `;
 
-	writeFile(join(dbPath, "src/schema.ts"), schemaTs);
+  writeFile(join(dbPath, "src/schema.ts"), schemaTs);
 
-	// src/auth-schema.ts placeholder (populated by `auth:generate`)
-	if (config.includeAuth) {
-		const authSchemaStub = `// Auto-generated by Better Auth CLI. Do not edit manually.
+  // src/auth-schema.ts placeholder (populated by `auth:generate`)
+  if (config.includeAuth) {
+    const authSchemaStub = `// Auto-generated by Better Auth CLI. Do not edit manually.
 // Run: ${config.packageManager === "bun" ? "bun run" : `${config.packageManager} run`} auth:generate
 
 export {};
 `;
-		writeFile(join(dbPath, "src/auth-schema.ts"), authSchemaStub);
-	}
+    writeFile(join(dbPath, "src/auth-schema.ts"), authSchemaStub);
+  }
 
-	// .env.example
-	const envExample = `DATABASE_URL=postgresql://user:password@localhost:5432/database_name
+  // .env.example
+  const envExample = `DATABASE_URL=postgresql://user:password@localhost:5432/database_name
 `;
 
-	writeFile(join(dbPath, ".env.example"), envExample);
+  writeFile(join(dbPath, ".env.example"), envExample);
 
-	writeFile(join(dbPath, ".gitignore"), databaseGitignore);
+  writeFile(join(dbPath, ".gitignore"), databaseGitignore);
 }

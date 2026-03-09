@@ -1,8 +1,8 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateMcpSession(config: ProjectConfig): string {
-	if (config.includeDatabase) {
-		return `import type { StreamableHTTPTransport } from "@hono/mcp";
+  if (config.includeDatabase) {
+    return `import type { StreamableHTTPTransport } from "@hono/mcp";
 import { createDb, schema } from "@${config.name}/db";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { lt } from "drizzle-orm";
@@ -30,9 +30,9 @@ export async function cleanupExpiredSessions(env: Bindings): Promise<void> {
 	}
 }
 `;
-	}
+  }
 
-	return `import type { StreamableHTTPTransport } from "@hono/mcp";
+  return `import type { StreamableHTTPTransport } from "@hono/mcp";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SESSION_TTL_MS } from "./types";
 

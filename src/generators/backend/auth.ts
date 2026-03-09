@@ -1,19 +1,19 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateAuthConfig(config: ProjectConfig): string {
-	const plugins = [];
-	const pluginImports = [`import { betterAuth } from "better-auth";`];
+  const plugins = [];
+  const pluginImports = [`import { betterAuth } from "better-auth";`];
 
-	if (config.includeOrganizations) {
-		pluginImports.push(`import { organization } from "better-auth/plugins";`);
-		plugins.push(`organization()`);
-	}
+  if (config.includeOrganizations) {
+    pluginImports.push(`import { organization } from "better-auth/plugins";`);
+    plugins.push(`organization()`);
+  }
 
-	if (config.includeMcpOAuth) {
-		pluginImports.push(`import { jwt } from "better-auth/plugins";`);
-		pluginImports.push(`import { oauthProvider } from "@better-auth/oauth-provider";`);
-		plugins.push(`jwt()`);
-		plugins.push(`\n\t\toauthProvider({
+  if (config.includeMcpOAuth) {
+    pluginImports.push(`import { jwt } from "better-auth/plugins";`);
+    pluginImports.push(`import { oauthProvider } from "@better-auth/oauth-provider";`);
+    plugins.push(`jwt()`);
+    plugins.push(`\n\t\toauthProvider({
 			allowDynamicClientRegistration: true,
 			allowUnauthenticatedClientRegistration: true,
 			loginPage: env.WEB_ORIGIN
@@ -24,32 +24,32 @@ export function generateAuthConfig(config: ProjectConfig): string {
 				: "/consent",
 			validAudiences: (() => {
 				const audiences = [env.API_ORIGIN, env.WEB_ORIGIN];${
-					config.includeMcp
-						? `
+          config.includeMcp
+            ? `
 				const apiOrigin = env.API_ORIGIN.replace(/\\/$/, "");
 				audiences.push(\`\${apiOrigin}/mcp\`);`
-						: ""
-				}
+            : ""
+        }
 				return [...new Set(audiences)];
 			})(),
 			silenceWarnings: {
 				oauthAuthServerConfig: true,
 			},
 		})`);
-	}
+  }
 
-	const disabledPaths = config.includeMcpOAuth ? `\n\t\tdisabledPaths: ["/token"],` : "";
+  const disabledPaths = config.includeMcpOAuth ? `\n\t\tdisabledPaths: ["/token"],` : "";
 
-	const socialProviders = config.includeGoogleAuth
-		? `\n\t\tsocialProviders: {
+  const socialProviders = config.includeGoogleAuth
+    ? `\n\t\tsocialProviders: {
 			google: {
 				clientId: env.GOOGLE_CLIENT_ID,
 				clientSecret: env.GOOGLE_CLIENT_SECRET,
 			},
 		},`
-		: "";
+    : "";
 
-	return `${pluginImports.join("\n")}
+  return `${pluginImports.join("\n")}
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { createDb } from "@${config.name}/db";
 import type { Bindings } from "./env";
@@ -75,7 +75,7 @@ export const getAuth = (env: Bindings) => createAuth(env);
 }
 
 export function generateAuthWithEnv(config: ProjectConfig): string {
-	return `import { getAuth } from "./auth";
+  return `import { getAuth } from "./auth";
 import type { Bindings } from "./env";
 
 /**
@@ -88,7 +88,7 @@ export const auth = getAuth(process.env as unknown as Bindings);
 }
 
 export function generateMiddlewares(_config: ProjectConfig): string {
-	return `import type { MiddlewareHandler } from "hono";
+  return `import type { MiddlewareHandler } from "hono";
 import { createAuth } from "../auth";
 
 export const requireAuth: MiddlewareHandler = async (c, next) => {

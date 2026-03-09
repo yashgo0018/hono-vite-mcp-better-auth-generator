@@ -13,56 +13,56 @@ import { generateOAuthRoute } from "./oauth-route";
 export { generateMcpWebComponents } from "./web-components";
 
 export function generateMcpBackend(
-	projectPath: string,
-	config: ProjectConfig,
-	versions: Map<string, string>,
+  projectPath: string,
+  config: ProjectConfig,
+  versions: Map<string, string>,
 ) {
-	if (!config.includeMcp) return;
+  if (!config.includeMcp) return;
 
-	const backendPath = join(projectPath, "apps/backend");
+  const backendPath = join(projectPath, "apps/backend");
 
-	// Create MCP directory structure
-	createDirectory(join(backendPath, "src/mcp"));
+  // Create MCP directory structure
+  createDirectory(join(backendPath, "src/mcp"));
 
-	// Generate MCP auth utilities
-	const authTs = generateMcpAuth(config);
-	writeFile(join(backendPath, "src/mcp/auth.ts"), authTs);
+  // Generate MCP auth utilities
+  const authTs = generateMcpAuth(config);
+  writeFile(join(backendPath, "src/mcp/auth.ts"), authTs);
 
-	// Generate MCP session management
-	const sessionTs = generateMcpSession(config);
-	writeFile(join(backendPath, "src/mcp/session.ts"), sessionTs);
+  // Generate MCP session management
+  const sessionTs = generateMcpSession(config);
+  writeFile(join(backendPath, "src/mcp/session.ts"), sessionTs);
 
-	// Generate MCP tools
-	const toolsTs = generateMcpTools(config);
-	writeFile(join(backendPath, "src/mcp/tools.ts"), toolsTs);
+  // Generate MCP tools
+  const toolsTs = generateMcpTools(config);
+  writeFile(join(backendPath, "src/mcp/tools.ts"), toolsTs);
 
-	// Generate MCP tool execution dispatcher
-	const toolExecutionTs = generateMcpToolExecution(config);
-	writeFile(join(backendPath, "src/mcp/tool-execution.ts"), toolExecutionTs);
+  // Generate MCP tool execution dispatcher
+  const toolExecutionTs = generateMcpToolExecution(config);
+  writeFile(join(backendPath, "src/mcp/tool-execution.ts"), toolExecutionTs);
 
-	// Generate MCP API client
-	const apiClientTs = generateMcpApiClient(config);
-	writeFile(join(backendPath, "src/mcp/api-client.ts"), apiClientTs);
+  // Generate MCP API client
+  const apiClientTs = generateMcpApiClient(config);
+  writeFile(join(backendPath, "src/mcp/api-client.ts"), apiClientTs);
 
-	// Generate MCP resources
-	const resourcesTs = generateMcpResources(config);
-	writeFile(join(backendPath, "src/mcp/resources.ts"), resourcesTs);
+  // Generate MCP resources
+  const resourcesTs = generateMcpResources(config);
+  writeFile(join(backendPath, "src/mcp/resources.ts"), resourcesTs);
 
-	// Generate MCP types
-	const typesTs = generateMcpTypes(config);
-	writeFile(join(backendPath, "src/mcp/types.ts"), typesTs);
+  // Generate MCP types
+  const typesTs = generateMcpTypes(config);
+  writeFile(join(backendPath, "src/mcp/types.ts"), typesTs);
 
-	// Generate MCP utils
-	const utilsTs = generateMcpUtils();
-	writeFile(join(backendPath, "src/mcp/utils.ts"), utilsTs);
+  // Generate MCP utils
+  const utilsTs = generateMcpUtils();
+  writeFile(join(backendPath, "src/mcp/utils.ts"), utilsTs);
 
-	// Generate MCP route handler
-	const mcpRouteTs = generateMcpRoute(config);
-	writeFile(join(backendPath, "src/routes/mcp.ts"), mcpRouteTs);
+  // Generate MCP route handler
+  const mcpRouteTs = generateMcpRoute(config);
+  writeFile(join(backendPath, "src/routes/mcp.ts"), mcpRouteTs);
 
-	if (config.includeMcpOAuth) {
-		// Generate OAuth metadata endpoints
-		const oauthRouteTs = generateOAuthRoute(config);
-		writeFile(join(backendPath, "src/routes/oauth.ts"), oauthRouteTs);
-	}
+  if (config.includeMcpOAuth) {
+    // Generate OAuth metadata endpoints
+    const oauthRouteTs = generateOAuthRoute(config);
+    writeFile(join(backendPath, "src/routes/oauth.ts"), oauthRouteTs);
+  }
 }

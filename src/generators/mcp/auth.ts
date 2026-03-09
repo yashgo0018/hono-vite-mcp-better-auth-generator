@@ -1,20 +1,24 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateMcpAuth(config: ProjectConfig): string {
-	if (!config.includeMcpOAuth) {
-		return `// MCP authentication utilities
+  if (!config.includeMcpOAuth) {
+    return `// MCP authentication utilities
 export async function verifyMcpAccess(): Promise<boolean> {
 	// TODO: Implement MCP access verification
 	return true;
 }
 `;
-	}
+  }
 
-	return `import { oauthProviderResourceClient } from "@better-auth/oauth-provider/resource-client";
+  return `import { oauthProviderResourceClient } from "@better-auth/oauth-provider/resource-client";
 import { createAuthClient } from "better-auth/client";
-${config.includeDatabase ? `import { createDb, schema } from "@${config.name}/db";
+${
+  config.includeDatabase
+    ? `import { createDb, schema } from "@${config.name}/db";
 import { desc, eq } from "drizzle-orm";
-import { resolveDatabaseUrl } from "../lib/db-url";` : ""}
+import { resolveDatabaseUrl } from "../lib/db-url";`
+    : ""
+}
 import { getAuth } from "../auth";
 import type { Bindings } from "../env";
 
@@ -73,7 +77,9 @@ export async function getSessionCookieForMcpBearer({
 }): Promise<string | null> {
 	const verified = await verifyOAuthAccessToken({ env, accessToken, issuer, audience });
 	if (!verified?.userId) return null;
-${config.includeDatabase ? `
+${
+  config.includeDatabase
+    ? `
 	const db = createDb(resolveDatabaseUrl(env));
 	const [authSession] = await db
 		.select({ token: schema.session.token })
@@ -86,9 +92,11 @@ ${config.includeDatabase ? `
 
 	const signedValue = await signSessionCookieValue(authSession.token, env.BETTER_AUTH_SECRET);
 	return \`better-auth.session_token=\${signedValue}\`;
-` : `
+`
+    : `
 	// Without a database, fall back to empty (API calls will use Authorization header)
 	return null;
-`}}
+`
+}}
 `;
 }

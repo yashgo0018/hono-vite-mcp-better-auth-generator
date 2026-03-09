@@ -3,56 +3,54 @@ import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
 
 export function generateGithubActions(projectPath: string, config: ProjectConfig) {
-	const workflowsPath = join(projectPath, ".github/workflows");
-	createDirectory(workflowsPath);
+  const workflowsPath = join(projectPath, ".github/workflows");
+  createDirectory(workflowsPath);
 
-	if (config.includeBackend) {
-		const deployBackend = generateDeployBackendWorkflow(config);
-		writeFile(join(workflowsPath, "deploy-backend.yml"), deployBackend);
-	}
+  if (config.includeBackend) {
+    const deployBackend = generateDeployBackendWorkflow(config);
+    writeFile(join(workflowsPath, "deploy-backend.yml"), deployBackend);
+  }
 
-	if (config.includeFrontend) {
-		const deployWeb = generateDeployWebWorkflow(config);
-		writeFile(join(workflowsPath, "deploy-web.yml"), deployWeb);
-	}
+  if (config.includeFrontend) {
+    const deployWeb = generateDeployWebWorkflow(config);
+    writeFile(join(workflowsPath, "deploy-web.yml"), deployWeb);
+  }
 
-	if (config.includeDatabase) {
-		const dbMigrate = generateDbMigrateWorkflow(config);
-		writeFile(join(workflowsPath, "db-migrate.yml"), dbMigrate);
-	}
+  if (config.includeDatabase) {
+    const dbMigrate = generateDbMigrateWorkflow(config);
+    writeFile(join(workflowsPath, "db-migrate.yml"), dbMigrate);
+  }
 
-	const ciWorkflow = generateCIWorkflow(config);
-	writeFile(join(workflowsPath, "ci.yml"), ciWorkflow);
+  const ciWorkflow = generateCIWorkflow(config);
+  writeFile(join(workflowsPath, "ci.yml"), ciWorkflow);
 }
 
 function generateDeployBackendWorkflow(config: ProjectConfig): string {
-	const secrets: string[] = ["APP_ENV"];
-	const secretCommands: string[] = [];
+  const secrets: string[] = ["APP_ENV"];
+  const secretCommands: string[] = [];
 
-	if (config.includeDatabase) {
-		secrets.push("DATABASE_URL");
-	}
-	if (config.includeAuth) {
-		secrets.push("BETTER_AUTH_SECRET");
-	}
+  if (config.includeDatabase) {
+    secrets.push("DATABASE_URL");
+  }
+  if (config.includeAuth) {
+    secrets.push("BETTER_AUTH_SECRET");
+  }
 
-	// Generate secret put commands
-	for (const secret of secrets) {
-		if (secret === "APP_ENV") continue; // APP_ENV is set based on environment
-		secretCommands.push(`printf "%s" "$${secret}" | bunx wrangler secret put ${secret}`);
-	}
+  // Generate secret put commands
+  for (const secret of secrets) {
+    if (secret === "APP_ENV") continue; // APP_ENV is set based on environment
+    secretCommands.push(`printf "%s" "$${secret}" | bunx wrangler secret put ${secret}`);
+  }
 
-	// Generate variables
-	const vars: string[] = [];
-	if (config.includeAuth) {
-		vars.push("API_ORIGIN", "WEB_ORIGIN");
-	}
+  // Generate variables
+  const vars: string[] = [];
+  if (config.includeAuth) {
+    vars.push("API_ORIGIN", "WEB_ORIGIN");
+  }
 
-	const varFlags = vars
-		.map((v) => `--var ${v}:\${{ vars.${v} }}`)
-		.join(" \\\\\n            ");
+  const varFlags = vars.map((v) => `--var ${v}:\${{ vars.${v} }}`).join(" \\\\\n            ");
 
-	return `name: Deploy Backend
+  return `name: Deploy Backend
 
 on:
   push:
@@ -81,9 +79,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
 ${secrets
-	.filter((s) => s !== "APP_ENV")
-	.map((s) => `          ${s}: \${{ secrets.${s} }}`)
-	.join("\n")}
+  .filter((s) => s !== "APP_ENV")
+  .map((s) => `          ${s}: \${{ secrets.${s} }}`)
+  .join("\n")}
         run: |
           cd apps/backend
 ${secretCommands.map((cmd) => `          ${cmd} --env staging`).join("\n")}
@@ -95,9 +93,9 @@ ${secretCommands.map((cmd) => `          ${cmd} --env staging`).join("\n")}
         env:
           CLOUDFLARE_API_TOKEN: \${{ secrets.CLOUDFLARE_API_TOKEN }}
 ${secrets
-	.filter((s) => s !== "APP_ENV")
-	.map((s) => `          ${s}: \${{ secrets.${s} }}`)
-	.join("\n")}
+  .filter((s) => s !== "APP_ENV")
+  .map((s) => `          ${s}: \${{ secrets.${s} }}`)
+  .join("\n")}
         run: |
           cd apps/backend
 ${secretCommands.map((cmd) => `          ${cmd} --env production`).join("\n")}
@@ -107,17 +105,15 @@ ${secretCommands.map((cmd) => `          ${cmd} --env production`).join("\n")}
 }
 
 function generateDeployWebWorkflow(config: ProjectConfig): string {
-	const frontendVars: string[] = [];
+  const frontendVars: string[] = [];
 
-	if (config.includeBackend) {
-		frontendVars.push("VITE_API_ORIGIN");
-	}
+  if (config.includeBackend) {
+    frontendVars.push("VITE_API_ORIGIN");
+  }
 
-	const envVars = frontendVars
-		.map((v) => `          ${v}: \${{ vars.${v} }}`)
-		.join("\n");
+  const envVars = frontendVars.map((v) => `          ${v}: \${{ vars.${v} }}`).join("\n");
 
-	return `name: Deploy Web
+  return `name: Deploy Web
 
 on:
   push:
@@ -167,7 +163,7 @@ ${envVars ? `        env:\n${envVars}\n` : ""}        run: |
 }
 
 function generateDbMigrateWorkflow(config: ProjectConfig): string {
-	return `name: Database Migration
+  return `name: Database Migration
 
 on:
   push:
@@ -206,7 +202,7 @@ jobs:
 }
 
 function generateCIWorkflow(config: ProjectConfig): string {
-	return `name: CI
+  return `name: CI
 
 on:
   pull_request:

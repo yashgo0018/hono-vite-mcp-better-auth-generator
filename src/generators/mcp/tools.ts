@@ -1,7 +1,7 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateMcpTools(config: ProjectConfig): string {
-	return `// Tool definitions for the MCP protocol (JSON Schema format).
+  return `// Tool definitions for the MCP protocol (JSON Schema format).
 // Execution logic lives in tool-execution.ts.
 export const tools = [
 	{
@@ -35,8 +35,8 @@ export const tools = [
 		annotations: { destructiveHint: false },
 	},
 ${
-	config.includeOrganizations
-		? `	{
+  config.includeOrganizations
+    ? `	{
 		name: "list_organizations",
 		description: "List organizations the current user belongs to",
 		inputSchema: { type: "object" as const, properties: {} },
@@ -55,13 +55,13 @@ ${
 		annotations: { idempotentHint: true },
 	},
 `
-		: ""
+    : ""
 }];
 `;
 }
 
 export function generateMcpToolExecution(config: ProjectConfig): string {
-	return `import type { McpApiClient } from "./api-client";
+  return `import type { McpApiClient } from "./api-client";
 import type { JsonRecord, SessionInfo, ToolResult } from "./types";
 import { asString, textResult } from "./utils";
 
@@ -70,8 +70,8 @@ export function formatError(toolName: string, error: unknown): string {
 	return \`Tool '\${toolName}' failed: \${String(error)}\`;
 }
 ${
-	config.includeOrganizations
-		? `
+  config.includeOrganizations
+    ? `
 export function resolveOrganizationId(args: JsonRecord, session: SessionInfo): string {
 	const explicit = asString(args.organization_id);
 	if (explicit) {
@@ -84,7 +84,7 @@ export function resolveOrganizationId(args: JsonRecord, session: SessionInfo): s
 	);
 }
 `
-		: ""
+    : ""
 }
 export async function executeTool(
 	toolName: string,
@@ -114,8 +114,8 @@ export async function executeTool(
 			return textResult(\`Record created: \${JSON.stringify(record, null, 2)}\`, record);
 		}
 ${
-	config.includeOrganizations
-		? `
+  config.includeOrganizations
+    ? `
 		case "list_organizations": {
 			const orgs = await client.get("/api/organizations");
 			return textResult(JSON.stringify(orgs, null, 2), orgs);
@@ -126,7 +126,7 @@ ${
 			return textResult(\`Switched to organization: \${organizationId}\`);
 		}
 `
-		: ""
+    : ""
 }
 		default:
 			throw new Error(\`Unknown tool: \${toolName}\`);

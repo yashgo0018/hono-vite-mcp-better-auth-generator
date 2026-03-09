@@ -4,37 +4,37 @@ import { createDirectory, writeFile } from "../utils/file-utils";
 import { chmodSync } from "fs";
 
 export function generateScripts(projectPath: string, config: ProjectConfig) {
-	const scriptsPath = join(projectPath, "scripts");
-	createDirectory(scriptsPath);
+  const scriptsPath = join(projectPath, "scripts");
+  createDirectory(scriptsPath);
 
-	if (config.includeBackend && (config.includeKV || config.includeR2)) {
-		const installCloudflare = generateInstallCloudflareScript(config);
-		const scriptPath = join(scriptsPath, "install-cloudflare.sh");
-		writeFile(scriptPath, installCloudflare);
-		chmodSync(scriptPath, 0o755);
-	}
+  if (config.includeBackend && (config.includeKV || config.includeR2)) {
+    const installCloudflare = generateInstallCloudflareScript(config);
+    const scriptPath = join(scriptsPath, "install-cloudflare.sh");
+    writeFile(scriptPath, installCloudflare);
+    chmodSync(scriptPath, 0o755);
+  }
 
-	if (config.includeGithubActions) {
-		const setupGithubEnv = generateSetupGithubEnvScript(config);
-		const scriptPath = join(scriptsPath, "setup-github-env.sh");
-		writeFile(scriptPath, setupGithubEnv);
-		chmodSync(scriptPath, 0o755);
-	}
+  if (config.includeGithubActions) {
+    const setupGithubEnv = generateSetupGithubEnvScript(config);
+    const scriptPath = join(scriptsPath, "setup-github-env.sh");
+    writeFile(scriptPath, setupGithubEnv);
+    chmodSync(scriptPath, 0o755);
+  }
 }
 
 function generateInstallCloudflareScript(config: ProjectConfig): string {
-	const resources: string[] = [];
-	if (config.includeKV) resources.push("KV namespaces");
-	if (config.includeR2) resources.push("R2 buckets");
-	const resourcesStr = resources.join(" and ");
+  const resources: string[] = [];
+  if (config.includeKV) resources.push("KV namespaces");
+  if (config.includeR2) resources.push("R2 buckets");
+  const resourcesStr = resources.join(" and ");
 
-	let kvCreation = "";
-	let r2Creation = "";
-	let updateScript = "";
-	let summary: string[] = [];
+  let kvCreation = "";
+  let r2Creation = "";
+  let updateScript = "";
+  let summary: string[] = [];
 
-	if (config.includeKV) {
-		kvCreation = `
+  if (config.includeKV) {
+    kvCreation = `
 echo ""
 echo "Creating KV namespace for staging..."
 STAGING_KV_ID=$(npx wrangler kv namespace create "KV" --env staging | grep -oP 'id = "\\K[^"]+' || echo "")
@@ -57,11 +57,11 @@ fi
 
 echo "✅ Production KV ID: $PROD_KV_ID"
 `;
-		summary.push("  Staging KV ID:      $STAGING_KV_ID", "  Production KV ID:   $PROD_KV_ID");
-	}
+    summary.push("  Staging KV ID:      $STAGING_KV_ID", "  Production KV ID:   $PROD_KV_ID");
+  }
 
-	if (config.includeR2) {
-		r2Creation = `
+  if (config.includeR2) {
+    r2Creation = `
 echo ""
 echo "Creating R2 bucket for staging..."
 STAGING_R2_BUCKET="${config.name}-staging"
@@ -80,25 +80,28 @@ npx wrangler r2 bucket create "$PROD_R2_BUCKET" || {
 }
 echo "✅ Production R2 Bucket: $PROD_R2_BUCKET"
 `;
-		summary.push("  Staging R2 Bucket:  $STAGING_R2_BUCKET", "  Production R2 Bucket: $PROD_R2_BUCKET");
-	}
+    summary.push(
+      "  Staging R2 Bucket:  $STAGING_R2_BUCKET",
+      "  Production R2 Bucket: $PROD_R2_BUCKET",
+    );
+  }
 
-	// Build the update script
-	const updates: string[] = [];
-	if (config.includeKV) {
-		updates.push(
-			"config.env.staging.kv_namespaces[0].id = '$STAGING_KV_ID';",
-			"config.env.production.kv_namespaces[0].id = '$PROD_KV_ID';",
-		);
-	}
-	if (config.includeR2) {
-		updates.push(
-			"config.env.staging.r2_buckets[0].bucket_name = '$STAGING_R2_BUCKET';",
-			"config.env.production.r2_buckets[0].bucket_name = '$PROD_R2_BUCKET';",
-		);
-	}
+  // Build the update script
+  const updates: string[] = [];
+  if (config.includeKV) {
+    updates.push(
+      "config.env.staging.kv_namespaces[0].id = '$STAGING_KV_ID';",
+      "config.env.production.kv_namespaces[0].id = '$PROD_KV_ID';",
+    );
+  }
+  if (config.includeR2) {
+    updates.push(
+      "config.env.staging.r2_buckets[0].bucket_name = '$STAGING_R2_BUCKET';",
+      "config.env.production.r2_buckets[0].bucket_name = '$PROD_R2_BUCKET';",
+    );
+  }
 
-	updateScript = `
+  updateScript = `
 # Update wrangler.json
 $RUNTIME -e "
 const fs = require('fs');
@@ -108,7 +111,7 @@ fs.writeFileSync('wrangler.json', JSON.stringify(config, null, 2));
 "
 `;
 
-	return `#!/bin/bash
+  return `#!/bin/bash
 
 # Install Cloudflare Resources
 # This script creates ${resourcesStr} for staging and production environments
@@ -148,31 +151,31 @@ echo ""
 echo "✅ Cloudflare resources created and configured!"
 echo ""
 echo "📋 Summary:"
-${summary.join("\necho \"")}
+${summary.join('\necho "')}
 echo ""
 echo "All resources have been automatically added to wrangler.json"
 `;
 }
 
 function generateSetupGithubEnvScript(config: ProjectConfig): string {
-	const backendSecrets: string[] = [`APP_ENV`];
-	const backendVars: string[] = [];
-	const frontendVars: string[] = [];
+  const backendSecrets: string[] = [`APP_ENV`];
+  const backendVars: string[] = [];
+  const frontendVars: string[] = [];
 
-	if (config.includeDatabase) {
-		backendSecrets.push(`DATABASE_URL`);
-	}
+  if (config.includeDatabase) {
+    backendSecrets.push(`DATABASE_URL`);
+  }
 
-	if (config.includeAuth) {
-		backendSecrets.push(`BETTER_AUTH_SECRET`);
-		backendVars.push(`API_ORIGIN`, `WEB_ORIGIN`);
-	}
+  if (config.includeAuth) {
+    backendSecrets.push(`BETTER_AUTH_SECRET`);
+    backendVars.push(`API_ORIGIN`, `WEB_ORIGIN`);
+  }
 
-	if (config.includeBackend && config.includeFrontend) {
-		frontendVars.push(`VITE_API_ORIGIN`);
-	}
+  if (config.includeBackend && config.includeFrontend) {
+    frontendVars.push(`VITE_API_ORIGIN`);
+  }
 
-	return `#!/bin/bash
+  return `#!/bin/bash
 
 # Setup GitHub Environment Variables and Secrets
 # This script helps you configure GitHub Actions environment variables and secrets
@@ -254,79 +257,82 @@ echo ""
 set_secret "staging" "CLOUDFLARE_API_TOKEN" "$CLOUDFLARE_API_TOKEN"
 set_secret "production" "CLOUDFLARE_API_TOKEN" "$CLOUDFLARE_API_TOKEN"
 
-${config.includeBackend
-			? `
+${
+  config.includeBackend
+    ? `
 echo ""
 echo "🔧 Backend Secrets (staging)..."
 ${backendSecrets
-				.map((secret) => {
-					if (secret === "APP_ENV") {
-						return `set_secret "staging" "APP_ENV" "staging"`;
-					}
-					return `read -sp "Enter ${secret} (staging): " ${secret}_STAGING
+  .map((secret) => {
+    if (secret === "APP_ENV") {
+      return `set_secret "staging" "APP_ENV" "staging"`;
+    }
+    return `read -sp "Enter ${secret} (staging): " ${secret}_STAGING
 echo ""
 set_secret "staging" "${secret}" "$${secret}_STAGING"`;
-				})
-				.join("\n")}
+  })
+  .join("\n")}
 
 echo ""
 echo "🔧 Backend Secrets (production)..."
 ${backendSecrets
-				.map((secret) => {
-					if (secret === "APP_ENV") {
-						return `set_secret "production" "APP_ENV" "production"`;
-					}
-					return `read -sp "Enter ${secret} (production): " ${secret}_PROD
+  .map((secret) => {
+    if (secret === "APP_ENV") {
+      return `set_secret "production" "APP_ENV" "production"`;
+    }
+    return `read -sp "Enter ${secret} (production): " ${secret}_PROD
 echo ""
 set_secret "production" "${secret}" "$${secret}_PROD"`;
-				})
-				.join("\n")}
-${backendVars.length > 0
-				? `
+  })
+  .join("\n")}
+${
+  backendVars.length > 0
+    ? `
 echo ""
 echo "🔧 Backend Variables (staging)..."
 ${backendVars
-					.map(
-						(variable) => `read -p "Enter ${variable} (staging): " ${variable}_STAGING
+  .map(
+    (variable) => `read -p "Enter ${variable} (staging): " ${variable}_STAGING
 set_variable "staging" "${variable}" "$${variable}_STAGING"`,
-					)
-					.join("\n")}
+  )
+  .join("\n")}
 
 echo ""
 echo "🔧 Backend Variables (production)..."
 ${backendVars
-					.map(
-						(variable) => `read -p "Enter ${variable} (production): " ${variable}_PROD
+  .map(
+    (variable) => `read -p "Enter ${variable} (production): " ${variable}_PROD
 set_variable "production" "${variable}" "$${variable}_PROD"`,
-					)
-					.join("\n")}
+  )
+  .join("\n")}
 `
-				: ""
-			}`
-			: ""
-		}
-${config.includeFrontend && frontendVars.length > 0
-			? `
+    : ""
+}`
+    : ""
+}
+${
+  config.includeFrontend && frontendVars.length > 0
+    ? `
 echo ""
 echo "🎨 Frontend Variables (staging)..."
 ${frontendVars
-				.map(
-					(variable) => `read -p "Enter ${variable} (staging): " ${variable}_STAGING
+  .map(
+    (variable) => `read -p "Enter ${variable} (staging): " ${variable}_STAGING
 set_variable "staging" "${variable}" "$${variable}_STAGING"`,
-				)
-				.join("\n")}
+  )
+  .join("\n")}
 
 echo ""
 echo "🎨 Frontend Variables (production)..."
 ${frontendVars
-				.map(
-					(variable) => `read -p "Enter ${variable} (production): " ${variable}_PROD
+  .map(
+    (variable) => `read -p "Enter ${variable} (production): " ${variable}_PROD
 set_variable "production" "${variable}" "$${variable}_PROD"`,
-				)
-				.join("\n")}
+  )
+  .join("\n")}
 `
-			: ""
-		}
+    : ""
+}
 
 echo ""
 echo "✅ GitHub environment setup complete!"

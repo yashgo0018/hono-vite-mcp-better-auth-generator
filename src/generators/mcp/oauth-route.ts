@@ -1,9 +1,9 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateOAuthRoute(config: ProjectConfig): string {
-	if (!config.includeMcpOAuth) return "";
+  if (!config.includeMcpOAuth) return "";
 
-	return `import { Hono } from "hono";
+  return `import { Hono } from "hono";
 import type { Bindings } from "../env";
 
 export const oauthRoutes = new Hono<{ Bindings: Bindings }>()

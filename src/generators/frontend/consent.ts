@@ -1,7 +1,7 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateOAuthConsentPage(config: ProjectConfig): string {
-	return `import { useEffect, useState } from "react";
+  return `import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { authClient } from "@/auth";
 

@@ -1,7 +1,7 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateViteConfig(_config: ProjectConfig): string {
-	return `import tailwindcss from "@tailwindcss/vite";
+  return `import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { fileURLToPath } from "url";
@@ -21,7 +21,7 @@ export default defineConfig({
 }
 
 export function generateIndexHtml(config: ProjectConfig): string {
-	return `<!doctype html>
+  return `<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -38,7 +38,7 @@ export function generateIndexHtml(config: ProjectConfig): string {
 }
 
 export function generateIndexCss(): string {
-	return `@import "tailwindcss";
+  return `@import "tailwindcss";
 
 :root {
 	font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;

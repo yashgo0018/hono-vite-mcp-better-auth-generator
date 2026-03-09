@@ -1,8 +1,8 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateMainTsx(config: ProjectConfig): string {
-	if (config.includeAuth) {
-		return `import React from "react";
+  if (config.includeAuth) {
+    return `import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./context/AuthContext";
@@ -21,9 +21,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 	</React.StrictMode>,
 );
 `;
-	}
+  }
 
-	return `import React from "react";
+  return `import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -37,7 +37,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 }
 
 export function generateAppTsx(config: ProjectConfig): string {
-	const homeContent = `\t\t<div className="min-h-screen bg-gray-950 text-gray-50 flex items-center justify-center">
+  const homeContent = `\t\t<div className="min-h-screen bg-gray-950 text-gray-50 flex items-center justify-center">
 			<div className="text-center space-y-4">
 				<h1 className="text-4xl font-bold">${config.name}</h1>
 				<p className="text-gray-400">${config.description || "Welcome to your new project!"}</p>
@@ -58,8 +58,9 @@ export function generateAppTsx(config: ProjectConfig): string {
 					>
 						React Docs
 					</a>
-					${config.includeBackend
-		? `
+					${
+            config.includeBackend
+              ? `
 					<a
 						href="https://hono.dev"
 						target="_blank"
@@ -68,27 +69,27 @@ export function generateAppTsx(config: ProjectConfig): string {
 					>
 						Hono Docs
 					</a>`
-		: ""
-	}
+              : ""
+          }
 				</div>
 			</div>
 		</div>`;
 
-	// Auth-enabled: full router with AuthGuard + Navbar
-	if (config.includeAuth) {
-		const imports = [
-			`import { BrowserRouter, Routes, Route } from "react-router-dom";`,
-			`import { AuthGuard } from "./routes/layouts/AuthGuard";`,
-			`import { Navbar } from "./components/Navbar";`,
-			`import { LoginPage } from "./routes/auth/LoginPage";`,
-			`import { SignupPage } from "./routes/auth/SignupPage";`,
-			`import { DashboardPage } from "./routes/dashboard/DashboardPage";`,
-		];
-		if (config.includeMcpOAuth) {
-			imports.push(`import ConsentPage from "./pages/consent";`);
-		}
+  // Auth-enabled: full router with AuthGuard + Navbar
+  if (config.includeAuth) {
+    const imports = [
+      `import { BrowserRouter, Routes, Route } from "react-router-dom";`,
+      `import { AuthGuard } from "./routes/layouts/AuthGuard";`,
+      `import { Navbar } from "./components/Navbar";`,
+      `import { LoginPage } from "./routes/auth/LoginPage";`,
+      `import { SignupPage } from "./routes/auth/SignupPage";`,
+      `import { DashboardPage } from "./routes/dashboard/DashboardPage";`,
+    ];
+    if (config.includeMcpOAuth) {
+      imports.push(`import ConsentPage from "./pages/consent";`);
+    }
 
-		return `${imports.join("\n")}
+    return `${imports.join("\n")}
 
 function Home() {
 	return (
@@ -114,11 +115,11 @@ function App() {
 
 export default App;
 `;
-	}
+  }
 
-	// MCP OAuth only (no auth): just the consent route
-	if (config.includeMcpOAuth) {
-		return `import { BrowserRouter, Routes, Route } from "react-router-dom";
+  // MCP OAuth only (no auth): just the consent route
+  if (config.includeMcpOAuth) {
+    return `import { BrowserRouter, Routes, Route } from "react-router-dom";
 import ConsentPage from "./pages/consent";
 
 function Home() {
@@ -140,9 +141,9 @@ function App() {
 
 export default App;
 `;
-	}
+  }
 
-	return `function App() {
+  return `function App() {
 	return (
 ${homeContent}
 	);

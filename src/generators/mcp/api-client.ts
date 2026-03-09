@@ -1,7 +1,7 @@
 import type { ProjectConfig } from "../../types";
 
 export function generateMcpApiClient(_config: ProjectConfig): string {
-	return `/**
+  return `/**
  * Authenticated API client for MCP tool execution.
  * Forwards the session cookie (and/or Authorization header) from the MCP request.
  */

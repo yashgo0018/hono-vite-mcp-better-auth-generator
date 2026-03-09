@@ -4,32 +4,32 @@ import { createDirectory, writeFile } from "../utils/file-utils";
 import { utilsGitignore } from "../gitignore";
 
 export function generateUtilsPackage(projectPath: string, config: ProjectConfig) {
-	const utilsPath = join(projectPath, "packages/utils");
-	createDirectory(utilsPath);
-	createDirectory(join(utilsPath, "src"));
+  const utilsPath = join(projectPath, "packages/utils");
+  createDirectory(utilsPath);
+  createDirectory(join(utilsPath, "src"));
 
-	// package.json
-	const packageJson = {
-		name: `@${config.name}/utils`,
-		type: "module",
-		main: "src/index.ts",
-		exports: {
-			".": "./src/index.ts",
-		},
-	};
+  // package.json
+  const packageJson = {
+    name: `@${config.name}/utils`,
+    type: "module",
+    main: "src/index.ts",
+    exports: {
+      ".": "./src/index.ts",
+    },
+  };
 
-	writeFile(join(utilsPath, "package.json"), JSON.stringify(packageJson, null, 2));
+  writeFile(join(utilsPath, "package.json"), JSON.stringify(packageJson, null, 2));
 
-	// tsconfig.json
-	const tsConfig = {
-		extends: "../../tsconfig.base.json",
-		include: ["src"],
-	};
+  // tsconfig.json
+  const tsConfig = {
+    extends: "../../tsconfig.base.json",
+    include: ["src"],
+  };
 
-	writeFile(join(utilsPath, "tsconfig.json"), JSON.stringify(tsConfig, null, 2));
+  writeFile(join(utilsPath, "tsconfig.json"), JSON.stringify(tsConfig, null, 2));
 
-	// src/index.ts
-	const indexTs = `export const ensureTrailingSlash = (value: string) =>
+  // src/index.ts
+  const indexTs = `export const ensureTrailingSlash = (value: string) =>
 	value.endsWith("/") ? value : \`\${value}/\`;
 
 export const invariant = (condition: unknown, message: string): asserts condition => {
@@ -51,7 +51,7 @@ export const sleep = (ms: number): Promise<void> => {
 };
 `;
 
-	writeFile(join(utilsPath, "src/index.ts"), indexTs);
+  writeFile(join(utilsPath, "src/index.ts"), indexTs);
 
-	writeFile(join(utilsPath, ".gitignore"), utilsGitignore);
+  writeFile(join(utilsPath, ".gitignore"), utilsGitignore);
 }
