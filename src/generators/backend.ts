@@ -56,7 +56,7 @@ export function generateBackend(
 		dependencies: deps,
 		devDependencies: {
 			"@cloudflare/workers-types": "catalog:",
-			wrangler: versions.get("wrangler") || "^3.107.0",
+			wrangler: versions.get("wrangler") || "^4.71.0",
 		},
 	};
 

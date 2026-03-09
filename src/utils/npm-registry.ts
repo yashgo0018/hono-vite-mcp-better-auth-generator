@@ -12,7 +12,7 @@ const FALLBACK_VERSIONS: Record<string, string> = {
 	// Backend
 	hono: "^4.11.7",
 	"@hono/zod-validator": "^0.7.6",
-	wrangler: "^3.107.0",
+	wrangler: "^4.71.0",
 	"better-auth": "^1.3.12",
 	"@better-auth/drizzle-adapter": "^1.3.12",
 
