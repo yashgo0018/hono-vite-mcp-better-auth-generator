@@ -1,7 +1,7 @@
-import { join } from "path";
+import { join } from "node:path";
+import { utilsGitignore } from "../gitignore";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
-import { utilsGitignore } from "../gitignore";
 
 export function generateUtilsPackage(projectPath: string, config: ProjectConfig) {
   const utilsPath = join(projectPath, "packages/utils");

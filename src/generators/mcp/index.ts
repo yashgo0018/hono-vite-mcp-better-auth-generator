@@ -1,22 +1,19 @@
-import { join } from "path";
+import { join } from "node:path";
 import type { ProjectConfig } from "../../types";
 import { createDirectory, writeFile } from "../../utils/file-utils";
-import { generateMcpAuth } from "./auth";
-import { generateMcpSession } from "./session";
-import { generateMcpTools, generateMcpToolExecution } from "./tools";
 import { generateMcpApiClient } from "./api-client";
+import { generateMcpAuth } from "./auth";
+import { generateOAuthRoute } from "./oauth-route";
 import { generateMcpResources } from "./resources";
+import { generateMcpRoute } from "./route";
+import { generateMcpSession } from "./session";
+import { generateMcpToolExecution, generateMcpTools } from "./tools";
 import { generateMcpTypes } from "./types";
 import { generateMcpUtils } from "./utils";
-import { generateMcpRoute } from "./route";
-import { generateOAuthRoute } from "./oauth-route";
+
 export { generateMcpWebComponents } from "./web-components";
 
-export function generateMcpBackend(
-  projectPath: string,
-  config: ProjectConfig,
-  versions: Map<string, string>,
-) {
+export function generateMcpBackend(projectPath: string, config: ProjectConfig) {
   if (!config.includeMcp) return;
 
   const backendPath = join(projectPath, "apps/backend");

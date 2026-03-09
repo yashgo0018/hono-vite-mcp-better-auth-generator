@@ -1,7 +1,7 @@
-import { join } from "path";
+import { chmodSync } from "node:fs";
+import { join } from "node:path";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
-import { chmodSync } from "fs";
 
 export function generateScripts(projectPath: string, config: ProjectConfig) {
   const scriptsPath = join(projectPath, "scripts");
@@ -31,7 +31,7 @@ function generateInstallCloudflareScript(config: ProjectConfig): string {
   let kvCreation = "";
   let r2Creation = "";
   let updateScript = "";
-  let summary: string[] = [];
+  const summary: string[] = [];
 
   if (config.includeKV) {
     kvCreation = `

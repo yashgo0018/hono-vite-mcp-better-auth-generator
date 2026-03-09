@@ -157,7 +157,7 @@ export function generateAuthFunctions(config: ProjectConfig): string {
     );
   }
 
-  return lines.join("\n") + "\n";
+  return `${lines.join("\n")}\n`;
 }
 
 export function generateLoginPage(config: ProjectConfig): string {

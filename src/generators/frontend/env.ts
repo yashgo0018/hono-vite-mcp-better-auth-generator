@@ -24,7 +24,7 @@ export function generateFrontendEnvExample(config: ProjectConfig): string {
     vars.push(`VITE_API_ORIGIN=http://localhost:8787`);
   }
 
-  return vars.join("\n") + "\n";
+  return `${vars.join("\n")}\n`;
 }
 
 export function generateApiClient(config: ProjectConfig): string {

@@ -50,7 +50,7 @@ ${
 ## Resources
 
 - \\\`doc://app/getting-started\\\` - This guide
-${config.includeMcpWebComponents ? "- \`ui://widget/example.html\` - Example interactive widget" : ""}
+${config.includeMcpWebComponents ? "- `ui://widget/example.html` - Example interactive widget" : ""}
 \`;
 		},
 	},

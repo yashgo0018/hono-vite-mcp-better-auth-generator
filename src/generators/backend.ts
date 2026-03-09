@@ -1,9 +1,9 @@
-import { join } from "path";
+import { join } from "node:path";
+import { backendGitignore } from "../gitignore";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
-import { backendGitignore } from "../gitignore";
-import { generateMcpBackend } from "./mcp/index";
 import { generateAuthConfig, generateAuthWithEnv, generateMiddlewares } from "./backend/auth";
+import { generateMcpBackend } from "./mcp/index";
 
 export function generateBackend(
   projectPath: string,
@@ -123,7 +123,7 @@ export function generateBackend(
 
   // MCP integration
   if (config.includeMcp) {
-    generateMcpBackend(projectPath, config, versions);
+    generateMcpBackend(projectPath, config);
   }
 }
 
@@ -370,5 +370,5 @@ function generateBackendEnvExample(config: ProjectConfig): string {
     );
   }
 
-  return vars.join("\n") + "\n";
+  return `${vars.join("\n")}\n`;
 }

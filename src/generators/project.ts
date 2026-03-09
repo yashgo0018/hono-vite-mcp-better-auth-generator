@@ -1,21 +1,21 @@
 import type { ProjectConfig } from "../types";
 import { createDirectory } from "../utils/file-utils";
+import { versionCache } from "../utils/npm-registry";
+import { generateBackend } from "./backend";
+import { generateDatabasePackage } from "./database";
+import { generateFrontend } from "./frontend/index";
+import { generateGithubActions } from "./github-actions";
+import { generateMcpWebComponents } from "./mcp/index";
 import {
-  generateRootPackageJson,
-  generateTsConfigBase,
   generateBiomeConfig,
   generateGitignore,
   generateReadme,
+  generateRootPackageJson,
+  generateTsConfigBase,
   generateVSCodeSettings,
 } from "./root";
-import { generateUtilsPackage } from "./utils";
-import { generateDatabasePackage } from "./database";
-import { generateBackend } from "./backend";
-import { generateFrontend } from "./frontend/index";
-import { generateGithubActions } from "./github-actions";
 import { generateScripts } from "./scripts";
-import { generateMcpWebComponents } from "./mcp/index";
-import { versionCache } from "../utils/npm-registry";
+import { generateUtilsPackage } from "./utils";
 
 export async function generateProject(projectPath: string, config: ProjectConfig) {
   // Get version map from cache (already fetched in index.ts)

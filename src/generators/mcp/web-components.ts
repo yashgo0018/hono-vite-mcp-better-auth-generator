@@ -1,7 +1,7 @@
-import { join } from "path";
+import { join } from "node:path";
+import { webComponentsGitignore } from "../../gitignore";
 import type { ProjectConfig } from "../../types";
 import { createDirectory, writeFile } from "../../utils/file-utils";
-import { webComponentsGitignore } from "../../gitignore";
 
 export function generateMcpWebComponents(
   projectPath: string,

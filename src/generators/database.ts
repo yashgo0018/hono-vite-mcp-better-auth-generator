@@ -1,7 +1,7 @@
-import { join } from "path";
+import { join } from "node:path";
+import { databaseGitignore } from "../gitignore";
 import type { ProjectConfig } from "../types";
 import { createDirectory, writeFile } from "../utils/file-utils";
-import { databaseGitignore } from "../gitignore";
 
 export function generateDatabasePackage(
   projectPath: string,

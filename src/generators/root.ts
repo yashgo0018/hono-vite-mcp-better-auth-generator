@@ -1,7 +1,7 @@
-import { join } from "path";
+import { join } from "node:path";
+import { rootGitignore } from "../gitignore";
 import type { ProjectConfig } from "../types";
 import { writeFile } from "../utils/file-utils";
-import { rootGitignore } from "../gitignore";
 
 export function generateRootPackageJson(
   projectPath: string,

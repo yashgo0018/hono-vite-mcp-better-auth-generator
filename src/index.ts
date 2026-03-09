@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 
-import { intro, outro, text, select, confirm, spinner, note } from "@clack/prompts";
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
+import { confirm, intro, note, outro, select, spinner, text } from "@clack/prompts";
 import chalk from "chalk";
-import { existsSync, mkdirSync, writeFileSync, unlinkSync } from "fs";
-import { join, resolve, relative } from "path";
 import { generateProject } from "./generators/project";
 import { collectRequiredPackages, versionCache } from "./utils/npm-registry";
 
@@ -83,7 +83,7 @@ async function main() {
     const testFile = join(resolvedParentDir, `.test-${Date.now()}`);
     writeFileSync(testFile, "");
     unlinkSync(testFile);
-  } catch (error) {
+  } catch (_error) {
     outro(chalk.red(`No write permissions for ${resolvedParentDir}`));
     process.exit(1);
   }

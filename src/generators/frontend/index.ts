@@ -1,27 +1,27 @@
-import { join } from "path";
+import { join } from "node:path";
+import { frontendGitignore } from "../../gitignore";
 import type { ProjectConfig } from "../../types";
 import { createDirectory, writeFile } from "../../utils/file-utils";
-import { frontendGitignore } from "../../gitignore";
-import { generateViteConfig, generateIndexHtml, generateIndexCss } from "./config-files";
-import { generateMainTsx, generateAppTsx } from "./app";
-import {
-  generateFrontendEnv,
-  generateFrontendEnvExample,
-  generateApiClient,
-  generateAuthClient,
-} from "./env";
-import { generateOAuthConsentPage } from "./consent";
+import { generateAppTsx, generateMainTsx } from "./app";
 import {
   generateAuthContext,
-  generateAuthProvider,
-  generateUseAuth,
-  generateAuthGuard,
   generateAuthFunctions,
-  generateLoginPage,
-  generateSignupPage,
+  generateAuthGuard,
+  generateAuthProvider,
   generateDashboardPage,
+  generateLoginPage,
   generateNavbar,
+  generateSignupPage,
+  generateUseAuth,
 } from "./auth-pages";
+import { generateIndexCss, generateIndexHtml, generateViteConfig } from "./config-files";
+import { generateOAuthConsentPage } from "./consent";
+import {
+  generateApiClient,
+  generateAuthClient,
+  generateFrontendEnv,
+  generateFrontendEnvExample,
+} from "./env";
 
 export function generateFrontend(
   projectPath: string,
