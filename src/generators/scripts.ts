@@ -37,7 +37,7 @@ function generateInstallCloudflareScript(config: ProjectConfig): string {
 		kvCreation = `
 echo ""
 echo "Creating KV namespace for staging..."
-STAGING_KV_ID=$(wrangler kv namespace create "KV" --env staging | grep -oP 'id = "\\K[^"]+' || echo "")
+STAGING_KV_ID=$(npx wrangler kv namespace create "KV" --env staging | grep -oP 'id = "\\K[^"]+' || echo "")
 
 if [ -z "$STAGING_KV_ID" ]; then
     echo "❌ Failed to create staging KV namespace"
@@ -48,7 +48,7 @@ echo "✅ Staging KV ID: $STAGING_KV_ID"
 
 echo ""
 echo "Creating KV namespace for production..."
-PROD_KV_ID=$(wrangler kv namespace create "KV" --env production | grep -oP 'id = "\\K[^"]+' || echo "")
+PROD_KV_ID=$(npx wrangler kv namespace create "KV" --env production | grep -oP 'id = "\\K[^"]+' || echo "")
 
 if [ -z "$PROD_KV_ID" ]; then
     echo "❌ Failed to create production KV namespace"
@@ -65,7 +65,7 @@ echo "✅ Production KV ID: $PROD_KV_ID"
 echo ""
 echo "Creating R2 bucket for staging..."
 STAGING_R2_BUCKET="${config.name}-staging"
-wrangler r2 bucket create "$STAGING_R2_BUCKET" || {
+npx wrangler r2 bucket create "$STAGING_R2_BUCKET" || {
     echo "❌ Failed to create staging R2 bucket"
     exit 1
 }
@@ -74,7 +74,7 @@ echo "✅ Staging R2 Bucket: $STAGING_R2_BUCKET"
 echo ""
 echo "Creating R2 bucket for production..."
 PROD_R2_BUCKET="${config.name}-production"
-wrangler r2 bucket create "$PROD_R2_BUCKET" || {
+npx wrangler r2 bucket create "$PROD_R2_BUCKET" || {
     echo "❌ Failed to create production R2 bucket"
     exit 1
 }
@@ -118,27 +118,19 @@ set -e
 PROJECT_NAME="${config.name}"
 BACKEND_PATH="apps/backend"
 
+cd $BACKEND_PATH
+
 echo "🚀 Creating Cloudflare resources..."
 
-# Check if wrangler is installed
-if ! command -v wrangler &> /dev/null; then
-    echo "❌ wrangler CLI is not installed. Please install it with:"
-    echo "   npm install -g wrangler"
-    exit 1
-fi
-
 # Check if user is logged in
-if ! wrangler whoami &> /dev/null; then
+if ! npx wrangler whoami &> /dev/null; then
     echo "❌ You are not logged in to Cloudflare. Please run:"
-    echo "   wrangler login"
+    echo "   npx wrangler login"
     exit 1
 fi
 ${kvCreation}${r2Creation}
 echo ""
 echo "📝 Updating wrangler.json..."
-
-# Update wrangler.json using node/bun
-cd $BACKEND_PATH
 
 # Check if bun is available, otherwise use node
 if command -v bun &> /dev/null; then
@@ -262,82 +254,79 @@ echo ""
 set_secret "staging" "CLOUDFLARE_API_TOKEN" "$CLOUDFLARE_API_TOKEN"
 set_secret "production" "CLOUDFLARE_API_TOKEN" "$CLOUDFLARE_API_TOKEN"
 
-${
-	config.includeBackend
-		? `
+${config.includeBackend
+			? `
 echo ""
 echo "🔧 Backend Secrets (staging)..."
 ${backendSecrets
-	.map((secret) => {
-		if (secret === "APP_ENV") {
-			return `set_secret "staging" "APP_ENV" "staging"`;
-		}
-		return `read -sp "Enter ${secret} (staging): " ${secret}_STAGING
+				.map((secret) => {
+					if (secret === "APP_ENV") {
+						return `set_secret "staging" "APP_ENV" "staging"`;
+					}
+					return `read -sp "Enter ${secret} (staging): " ${secret}_STAGING
 echo ""
 set_secret "staging" "${secret}" "$${secret}_STAGING"`;
-	})
-	.join("\n")}
+				})
+				.join("\n")}
 
 echo ""
 echo "🔧 Backend Secrets (production)..."
 ${backendSecrets
-	.map((secret) => {
-		if (secret === "APP_ENV") {
-			return `set_secret "production" "APP_ENV" "production"`;
-		}
-		return `read -sp "Enter ${secret} (production): " ${secret}_PROD
+				.map((secret) => {
+					if (secret === "APP_ENV") {
+						return `set_secret "production" "APP_ENV" "production"`;
+					}
+					return `read -sp "Enter ${secret} (production): " ${secret}_PROD
 echo ""
 set_secret "production" "${secret}" "$${secret}_PROD"`;
-	})
-	.join("\n")}
-${
-	backendVars.length > 0
-		? `
+				})
+				.join("\n")}
+${backendVars.length > 0
+				? `
 echo ""
 echo "🔧 Backend Variables (staging)..."
 ${backendVars
-	.map(
-		(variable) => `read -p "Enter ${variable} (staging): " ${variable}_STAGING
+					.map(
+						(variable) => `read -p "Enter ${variable} (staging): " ${variable}_STAGING
 set_variable "staging" "${variable}" "$${variable}_STAGING"`,
-	)
-	.join("\n")}
+					)
+					.join("\n")}
 
 echo ""
 echo "🔧 Backend Variables (production)..."
 ${backendVars
-	.map(
-		(variable) => `read -p "Enter ${variable} (production): " ${variable}_PROD
+					.map(
+						(variable) => `read -p "Enter ${variable} (production): " ${variable}_PROD
 set_variable "production" "${variable}" "$${variable}_PROD"`,
-	)
-	.join("\n")}
+					)
+					.join("\n")}
 `
-		: ""
-}`
-		: ""
-}
-${
-	config.includeFrontend && frontendVars.length > 0
-		? `
+				: ""
+			}`
+			: ""
+		}
+${config.includeFrontend && frontendVars.length > 0
+			? `
 echo ""
 echo "🎨 Frontend Variables (staging)..."
 ${frontendVars
-	.map(
-		(variable) => `read -p "Enter ${variable} (staging): " ${variable}_STAGING
+				.map(
+					(variable) => `read -p "Enter ${variable} (staging): " ${variable}_STAGING
 set_variable "staging" "${variable}" "$${variable}_STAGING"`,
-	)
-	.join("\n")}
+				)
+				.join("\n")}
 
 echo ""
 echo "🎨 Frontend Variables (production)..."
 ${frontendVars
-	.map(
-		(variable) => `read -p "Enter ${variable} (production): " ${variable}_PROD
+				.map(
+					(variable) => `read -p "Enter ${variable} (production): " ${variable}_PROD
 set_variable "production" "${variable}" "$${variable}_PROD"`,
-	)
-	.join("\n")}
+				)
+				.join("\n")}
 `
-		: ""
-}
+			: ""
+		}
 
 echo ""
 echo "✅ GitHub environment setup complete!"
